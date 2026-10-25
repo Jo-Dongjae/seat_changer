@@ -1,6 +1,6 @@
 // 랜덤 자리 뽑기 - 오프라인 캐시용 서비스 워커
 // 앱 파일을 고쳐서 다시 올릴 때는 아래 버전 숫자를 올려 주세요.
-const VERSION = 'v1';
+const VERSION = 'v11';
 const APP_CACHE = 'seat-picker-app-' + VERSION;
 const FONT_CACHE = 'seat-picker-fonts';
 const CORE = [
