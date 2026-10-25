@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>랜덤 자리 뽑기</title>
+<meta name="theme-color" content="#EDF2F0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101715" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="자리 뽑기">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Jua&display=swap">
+<style>
+/* Replaces the base reset the artifact viewer used to provide. */
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; font: 14px system-ui, sans-serif; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+
+/* Layout: chalkboard, teacher's podium centered in front of it, then rows of real-looking desks (wood top, front edge, name plate, chair) seen from above. Every row shares the same seat columns; a desk spans one or more of them. Edit switch: exclude, move, join/split, pin a student's seat. */
+:root {
+  --bg: #EDF2F0;
+  --surface: #FFFFFF;
+  --ink: #16211D;
+  --muted: #586964;
+  --line: #CAD7D2;
+  --board: #1F4A3F;
+  --chalk: #F1F5EC;
+  --pop: #F2B632;
+  --pop-ink: #3A2A00;
+  --desk: #E3CDA0;
+  --desk-edge: #B8985F;
+  --desk-hi: rgba(255, 255, 255, 0.55);
+  --desk-line: #C2A774;
+  --podium: #C8A36A;
+  --podium-edge: #8F7240;
+  --podium-ink: #2B2111;
+  --tag: #FFFFFF;
+  --chair: #6F8C99;
+  --focus: #1F6FEB;
+  --on-focus: #FFFFFF;
+  --font-display: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101715;
+    --surface: #18221F;
+    --ink: #E7EFEC;
+    --muted: #9AAAA5;
+    --line: #2E3E39;
+    --board: #25594B;
+    --desk: #62513A;
+    --desk-edge: #3D3222;
+    --desk-hi: rgba(255, 255, 255, 0.14);
+    --desk-line: #86744F;
+    --podium: #7B6544;
+    --podium-edge: #4C3E29;
+    --podium-ink: #F1E6CF;
+    --tag: #22302B;
+    --chair: #4A6B79;
+    --focus: #7DB4FF;
+    --on-focus: #0B1A2E;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101715;
+  --surface: #18221F;
+  --ink: #E7EFEC;
+  --muted: #9AAAA5;
+  --line: #2E3E39;
+  --board: #25594B;
+  --desk: #62513A;
+  --desk-edge: #3D3222;
+  --desk-hi: rgba(255, 255, 255, 0.14);
+  --desk-line: #86744F;
+  --podium: #7B6544;
+  --podium-edge: #4C3E29;
+  --podium-ink: #F1E6CF;
+  --tag: #22302B;
+  --chair: #4A6B79;
+  --focus: #7DB4FF;
+  --on-focus: #0B1A2E;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 30px; line-height: 1.1; margin: 0; text-wrap: balance; }
+.status { color: var(--muted); font-size: 13px; margin: 4px 0 0; font-variant-numeric: tabular-nums; }
+
+button, input, textarea { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.board {
+  background: var(--board);
+  color: var(--chalk);
+  font-family: var(--font-display);
+  text-align: center;
+  letter-spacing: 0.5em;
+  padding: 8px 8px 8px calc(8px + 0.5em);
+  border-radius: 6px;
+  font-size: 17px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
+}
+.podium {
+  align-self: center;
+  width: 32%; min-width: 104px;
+  padding: 7px 8px 7px calc(8px + 0.3em);
+  text-align: center;
+  font-family: var(--font-display); font-size: 15px; letter-spacing: 0.3em;
+  background: var(--podium); color: var(--podium-ink);
+  border-radius: 8px;
+  box-shadow: 0 3px 0 var(--podium-edge), inset 0 1px 0 var(--desk-hi);
+  margin-bottom: 4px;
+}
+.stage { display: flex; flex-direction: column; gap: 10px; }
+.grid {
+  display: flex; flex-direction: column; row-gap: 20px; padding: 4px 4px 10px;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.rowg { display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); column-gap: 12px; }
+.slot { position: relative; min-width: 0; }
+.grid.moving .desk { touch-action: none; cursor: grab; }
+.desk.dragging { z-index: 10; cursor: grabbing; box-shadow: 0 3px 0 var(--desk-edge), 0 12px 20px rgba(0, 0, 0, 0.28); }
+.desk.drop { outline: 3px dashed var(--focus); outline-offset: 3px; }
+
+.desk {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--k, 1), minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 1.5px solid transparent;
+  border-radius: 9px;
+  background: var(--desk);
+  box-shadow: 0 3px 0 var(--desk-edge), inset 0 1px 0 var(--desk-hi);
+  cursor: pointer;
+  text-align: center;
+}
+.desk:focus-visible { outline-offset: 4px; }
+.desk.hit { box-shadow: 0 3px 0 var(--desk-edge), 0 0 0 3px var(--pop); }
+.desk.off {
+  background: transparent;
+  border: 1.5px dashed var(--line);
+  box-shadow: none;
+}
+.seat {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  min-width: 0; min-height: 58px;
+  padding: 6px 3px;
+  container-type: inline-size;
+}
+.seat + .seat { border-left: 1.5px dashed var(--desk-line); }
+.desk.off .seat + .seat { border-left-color: var(--line); }
+.seat::after {
+  content: "";
+  position: absolute; left: 50%; bottom: -12px;
+  width: 56%; height: 9px;
+  transform: translateX(-50%);
+  background: var(--chair);
+  border-radius: 0 0 7px 7px;
+}
+.seat.vacant::after { display: none; }
+.tag {
+  width: 100%; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 3px 3px 4px;
+  background: var(--tag);
+  border-radius: 6px;
+  box-shadow: 0 1px 0 var(--desk-edge);
+}
+.tag .no { font-family: var(--font-display); font-size: clamp(18px, 6vw, 25px); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.tag .no.sm { font-family: var(--font-body); font-size: 10.5px; line-height: 1.1; color: var(--muted); }
+.tag .nm {
+  max-width: 100%; margin-top: 1px;
+  font-family: var(--font-display); font-size: 15px;
+  font-size: clamp(10px, calc(84cqw / var(--len, 3)), 21px);
+  line-height: 1.12; color: var(--ink); text-align: center;
+  white-space: normal; word-break: break-all; overflow: hidden; max-height: 2.3em;
+}
+.tag.blank { min-height: 34px; background: transparent; box-shadow: none; border: 1.5px dashed var(--desk-line); }
+.tag.x { min-height: 34px; background: transparent; box-shadow: none; color: var(--muted); font-size: 16px; }
+.desk.off .tag.x { color: var(--line); }
+.seat.sel .tag { box-shadow: 0 0 0 3px var(--focus); }
+.seat.hit .tag { background: var(--pop); color: var(--pop-ink); animation: pop 0.35s ease-out; }
+.seat.hit .tag .nm, .seat.hit .tag .no.sm { color: var(--pop-ink); }
+.lock { position: absolute; top: 4px; right: 6px; width: 12px; height: 12px; color: var(--muted); display: block; }
+.seat.hit .lock { color: var(--pop-ink); }
+@keyframes pop { from { transform: scale(0.8); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .seat.hit .tag { animation: none; } }
+
+.joiner {
+  position: absolute; z-index: 3;
+  width: 28px; height: 28px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--bg); border-radius: 50%;
+  font-size: 19px; line-height: 1; font-weight: 600; cursor: pointer;
+}
+.joiner.join { right: -20px; top: 50%; transform: translateY(-50%); background: var(--focus); color: var(--on-focus); }
+.joiner.split { top: 0; transform: translate(-50%, -50%); background: var(--ink); color: var(--bg); }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+
+.pinpanel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.pinhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pinhead strong { font-size: 14px; font-weight: 600; }
+.pinbtns { display: flex; gap: 6px; }
+.mini { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 190px; overflow-y: auto; }
+.chip { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.chip.else { opacity: 0.55; }
+.chip.on { background: var(--focus); border-color: var(--focus); color: var(--on-focus); opacity: 1; }
+
+.announce {
+  background: var(--pop); color: var(--pop-ink);
+  border-radius: 12px; padding: 12px 14px;
+  text-align: center; text-wrap: balance;
+}
+.announce .big { font-family: var(--font-display); font-size: 24px; line-height: 1.25; }
+.announce .sub { font-size: 14px; margin-top: 2px; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.lab { font-size: 12px; color: var(--muted); }
+.group { display: flex; flex-direction: column; gap: 6px; }
+.seg { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--bg); border-radius: 10px; }
+.seg button {
+  border: 0; background: transparent; padding: 9px 4px; border-radius: 7px; cursor: pointer; font-weight: 500; color: var(--muted); min-width: 0;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+.go {
+  width: 100%; border: 0; cursor: pointer;
+  background: var(--board); color: var(--chalk);
+  font-family: var(--font-display); font-size: 21px;
+  padding: 14px; border-radius: 12px;
+}
+.go:disabled { opacity: 0.5; cursor: default; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ghost {
+  flex: 1 1 0; min-width: 0;
+  background: transparent; border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 8px; cursor: pointer; font-weight: 500;
+}
+.ghost:disabled { opacity: 0.5; cursor: default; }
+
+details > summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::after { content: "+"; color: var(--muted); font-size: 18px; }
+details[open] > summary::after { content: "−"; }
+.fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: 12px; color: var(--muted); }
+input[type="number"], input[type="text"], textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+}
+.field input { font-variant-numeric: tabular-nums; }
+.names { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.namegrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+.nf { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.nf span { width: 1.7em; text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; flex: none; }
+.nf input { flex: 1; min-width: 0; padding: 7px 8px; }
+.bulk { margin-top: 4px; }
+.bulk summary { font-weight: 500; font-size: 13px; color: var(--muted); }
+.bulk textarea { min-height: 120px; resize: vertical; line-height: 1.5; margin-top: 8px; }
+.copybox { display: flex; flex-direction: column; gap: 4px; }
+.copybox textarea { min-height: 130px; font-size: 13px; }
+
+.tablewrap { overflow-x: auto; margin-top: 12px; max-height: 360px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 12px; color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--surface); }
+td.pos, td.mate { color: var(--muted); }
+
+/* Tablet: wider column and roomier desks */
+@media (min-width: 700px) {
+  .wrap { max-width: 760px; }
+  .seat { min-height: 78px; }
+  h1 { font-size: 34px; }
+  .go { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>랜덤 자리 뽑기</h1>
+    <p class="status" id="status" aria-live="polite"></p>
+  </header>
+
+  <section class="stage" aria-label="자리 배치">
+    <div class="board">칠 판</div>
+    <div class="podium">교 탁</div>
+    <div class="grid" id="grid"></div>
+    <div class="group">
+      <span class="lab">책상 편집</span>
+      <div class="seg" style="--n:2" role="group" aria-label="책상 편집 방식">
+        <button type="button" id="edEx" aria-pressed="true">눌러서 제외</button>
+        <button type="button" id="edMv" aria-pressed="false">끌어서 옮기기</button>
+        <button type="button" id="edJn" aria-pressed="false">붙이기·떼기</button>
+        <button type="button" id="edPin" aria-pressed="false">자리 고정</button>
+      </div>
+    </div>
+    <div class="pinpanel" id="pinPanel" hidden>
+      <div class="pinhead">
+        <strong id="pinTitle"></strong>
+        <div class="pinbtns">
+          <button type="button" class="mini" id="pinClear" hidden>이 자리 고정 풀기</button>
+          <button type="button" class="mini" id="pinAll" hidden>전체 풀기</button>
+        </div>
+      </div>
+      <div class="chips" id="pinChips" role="group" aria-label="앉힐 학생"></div>
+    </div>
+    <p class="hint" id="hint"></p>
+  </section>
+
+  <div class="announce" id="announce" hidden aria-live="polite"></div>
+
+  <section class="panel" aria-label="뽑기">
+    <div class="group">
+      <span class="lab">책상 배열 (한 번에 바꾸기)</span>
+      <div class="seg" style="--n:4" role="group" aria-label="책상 배열">
+        <button type="button" id="dk1" aria-pressed="false">1명씩</button>
+        <button type="button" id="dk2" aria-pressed="false">2명씩</button>
+        <button type="button" id="dk3" aria-pressed="false">3명씩</button>
+        <button type="button" id="dk4" aria-pressed="false">4명씩</button>
+      </div>
+    </div>
+    <div class="group">
+      <span class="lab">뽑는 방식</span>
+      <div class="seg" role="group" aria-label="뽑는 방식">
+        <button type="button" id="mAll" aria-pressed="true">전체 섞기</button>
+        <button type="button" id="mOne" aria-pressed="false">한 명씩 뽑기</button>
+      </div>
+    </div>
+    <button type="button" class="go" id="go">자리 뽑기</button>
+    <div class="row">
+      <button type="button" class="ghost" id="reset">처음으로</button>
+      <button type="button" class="ghost" id="copy">결과 복사</button>
+    </div>
+    <div class="copybox" id="copybox" hidden>
+      <span class="lab">아래 글을 길게 눌러 복사하세요.</span>
+      <textarea id="copytext" readonly></textarea>
+    </div>
+  </section>
+
+  <section class="panel">
+    <details id="settings">
+      <summary>설정 · 이름 입력</summary>
+      <div class="fields">
+        <div class="field"><label for="inCols">가로(열)</label><input id="inCols" type="number" inputmode="numeric" min="1" max="10"></div>
+        <div class="field"><label for="inRows">세로(줄)</label><input id="inRows" type="number" inputmode="numeric" min="1" max="12"></div>
+        <div class="field"><label for="inCount">학생 수</label><input id="inCount" type="number" inputmode="numeric" min="1" max="120"></div>
+      </div>
+      <div class="names">
+        <span class="lab">이름 입력 (비워두면 번호만 나와요. 엔터를 누르면 다음 번호로 넘어가요.)</span>
+        <div class="namegrid" id="nameFields"></div>
+        <details class="bulk">
+          <summary>이름을 한꺼번에 붙여넣기</summary>
+          <textarea id="inNames" aria-label="이름 목록" placeholder="한 줄에 한 명씩, 번호 순서대로&#10;김가온&#10;이서윤&#10;박도현"></textarea>
+        </details>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <details id="rosterBox">
+      <summary>명렬표 (번호별 자리)</summary>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>번호</th><th>이름</th><th>자리</th><th id="thMate">같은 책상</th></tr></thead>
+          <tbody id="roster"></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+</div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var grid = $('grid'), statusEl = $('status'), announce = $('announce'), go = $('go'), hintEl = $('hint');
+  var mAll = $('mAll'), mOne = $('mOne'), resetBtn = $('reset'), copyBtn = $('copy');
+  var dkBtns = [null, $('dk1'), $('dk2'), $('dk3'), $('dk4')];
+  var edEx = $('edEx'), edMv = $('edMv'), edJn = $('edJn'), edPin = $('edPin');
+  var pinPanel = $('pinPanel'), pinTitle = $('pinTitle'), pinChips = $('pinChips'), pinClear = $('pinClear'), pinAll = $('pinAll');
+  var inCols = $('inCols'), inRows = $('inRows'), inCount = $('inCount'), inNames = $('inNames');
+  var nameFields = $('nameFields'), thMate = $('thMate');
+  var roster = $('roster'), copybox = $('copybox'), copytext = $('copytext');
+  var KEY = 'seatpicker.v1';
+  var LOCK_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"></rect><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.7"></path></svg>';
+
+  var cols = 5, rows = 6, count = 30, namesText = '', mode = 'all';
+  var excl = [], join = [], pins = {};
+  var editMode = 'exclude', pinSeat = -1, drag = null;
+  var seats = [], shown = [], next = 1, hit = -1, drawn = false, busy = false;
+
+  function rnd(n) {
+    try {
+      var a = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n, x;
+      do { crypto.getRandomValues(a); x = a[0]; } while (x >= lim);
+      return x % n;
+    } catch (e) { return Math.floor(Math.random() * n); }
+  }
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = rnd(i + 1), t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function total() { return cols * rows; }
+  function ensureArrays() {
+    var n = total(), i;
+    while (excl.length < n) excl.push(false);
+    excl.length = n;
+    while (join.length < n) join.push(false);
+    join.length = n;
+    for (i = 0; i < n; i++) if (i % cols === cols - 1) join[i] = false;
+    var seen = {};
+    Object.keys(pins).forEach(function (k) {
+      var si = +k, no = pins[k];
+      if (si >= n || excl[si] || no < 1 || no > count || seen[no]) delete pins[k];
+      else seen[no] = true;
+    });
+  }
+  function availIdx() {
+    var out = [];
+    for (var i = 0; i < total(); i++) if (!excl[i]) out.push(i);
+    return out;
+  }
+  function freeSeats() { return availIdx().filter(function (i) { return pins[i] == null; }); }
+  function pinnedNos() {
+    var s = {};
+    Object.keys(pins).forEach(function (k) { s[pins[k]] = true; });
+    return s;
+  }
+  function pinCount() { return Object.keys(pins).length; }
+  function nextFree(from) {
+    var p = pinnedNos();
+    while (from <= count && p[from]) from++;
+    return from;
+  }
+  function deskRange(i) {
+    var s = i, e = i;
+    while (s % cols > 0 && join[s - 1]) s--;
+    while (e % cols < cols - 1 && join[e]) e++;
+    return [s, e];
+  }
+  function deskSize(i) { var r = deskRange(i); return r[1] - r[0] + 1; }
+  function mates(i) {
+    var r = deskRange(i), out = [];
+    for (var j = r[0]; j <= r[1]; j++) if (j !== i && seats[j] != null) out.push(seats[j]);
+    return out;
+  }
+  function groupCount() {
+    var g = 0;
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; ) {
+        var n = 1;
+        while (c + n < cols && join[r * cols + c + n - 1]) n++;
+        if (n >= 2) g++;
+        c += n;
+      }
+    }
+    return g;
+  }
+  function groupPattern(g) {
+    var a = new Array(total()).fill(false);
+    for (var r = 0; r < rows; r++) for (var c = 0; c + 1 < cols; c++) if (c % g !== g - 1) a[r * cols + c] = true;
+    return a;
+  }
+  function names() { return namesText.split('\n').map(function (s) { return s.trim(); }); }
+  function nameOf(no) { return names()[no - 1] || ''; }
+  function label(no) { var n = nameOf(no); return n ? n + '(' + no + '번)' : no + '번'; }
+  function posOf(i) { return (Math.floor(i / cols) + 1) + '줄 ' + ((i % cols) + 1) + '번째'; }
+  function studentValues(n) {
+    var p = pinnedNos(), v = [];
+    for (var no = 1; no <= count && v.length < n; no++) if (!p[no]) v.push(no);
+    while (v.length < n) v.push(null);
+    return v;
+  }
+  function place(vals) {
+    var arr = new Array(total()).fill(null);
+    Object.keys(pins).forEach(function (k) { arr[+k] = pins[k]; });
+    var idx = freeSeats();
+    for (var q = 0; q < idx.length; q++) arr[idx[q]] = vals[q];
+    return arr;
+  }
+  function ordered() { return place(studentValues(freeSeats().length)); }
+  function clamp(v, lo, hi, fallback) {
+    v = parseInt(v, 10);
+    if (isNaN(v)) return fallback;
+    return Math.max(lo, Math.min(hi, v));
+  }
+  function setNames(arr) {
+    while (arr.length && !arr[arr.length - 1]) arr.pop();
+    namesText = arr.join('\n');
+    save();
+  }
+  function listTrue(a) {
+    var out = [];
+    for (var i = 0; i < a.length; i++) if (a[i]) out.push(i);
+    return out;
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        cols: cols, rows: rows, count: count, namesText: namesText, mode: mode,
+        off: listTrue(excl), join: listTrue(join),
+        pins: Object.keys(pins).map(function (k) { return [+k, pins[k]]; })
+      }));
+    } catch (e) {}
+  }
+  function load() {
+    try {
+      var s = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (!s) return;
+      cols = clamp(s.cols, 1, 10, 5);
+      rows = clamp(s.rows, 1, 12, 6);
+      count = clamp(s.count, 1, cols * rows, Math.min(30, cols * rows));
+      namesText = typeof s.namesText === 'string' ? s.namesText : '';
+      mode = s.mode === 'one' ? 'one' : 'all';
+      ensureArrays();
+      if (Array.isArray(s.off)) s.off.forEach(function (i) { if (i >= 0 && i < total()) excl[i] = true; });
+      if (Array.isArray(s.join)) s.join.forEach(function (i) { if (i >= 0 && i < total()) join[i] = true; });
+      else if (s.desk === 2 || s.desk === 3) join = groupPattern(s.desk);
+      if (Array.isArray(s.pins)) s.pins.forEach(function (p) {
+        if (Array.isArray(p) && p[0] >= 0 && p[0] < total()) pins[p[0]] = p[1];
+      });
+    } catch (e) {}
+  }
+
+  function buildNameFields() {
+    nameFields.textContent = '';
+    var arr = names();
+    for (var n = 1; n <= count; n++) {
+      var w = document.createElement('label');
+      w.className = 'nf';
+      var s = document.createElement('span');
+      s.textContent = n;
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.id = 'nm' + n;
+      inp.value = arr[n - 1] || '';
+      inp.maxLength = 12;
+      inp.autocomplete = 'off';
+      inp.setAttribute('enterkeyhint', 'next');
+      inp.setAttribute('aria-label', n + '번 이름');
+      inp.setAttribute('data-i', n - 1);
+      w.appendChild(s);
+      w.appendChild(inp);
+      nameFields.appendChild(w);
+    }
+  }
+
+  function clickDesk(idxs, e) {
+    if (busy) return;
+    if (editMode === 'pin') {
+      var st = e && e.target && e.target.closest ? e.target.closest('.seat') : null;
+      if (st) {
+        var i = +st.getAttribute('data-i');
+        if (!excl[i]) { pinSeat = i; render(); }
+      }
+      return;
+    }
+    if (editMode !== 'exclude') return;
+    var allOff = idxs.every(function (i) { return excl[i]; });
+    idxs.forEach(function (i) { excl[i] = !allOff; });
+    save();
+    reset();
+  }
+
+  function swapDesks(a, b) {
+    var ar = +a.getAttribute('data-r'), as = +a.getAttribute('data-s');
+    var br = +b.getAttribute('data-r'), bs = +b.getAttribute('data-s');
+    var n = +a.getAttribute('data-n');
+    for (var k = 0; k < n; k++) {
+      var ia = ar * cols + as + k, ib = br * cols + bs + k;
+      var t = seats[ia]; seats[ia] = seats[ib]; seats[ib] = t;
+      var e = excl[ia]; excl[ia] = excl[ib]; excl[ib] = e;
+      var pa = pins[ia], pb = pins[ib];
+      delete pins[ia]; delete pins[ib];
+      if (pa != null) pins[ib] = pa;
+      if (pb != null) pins[ia] = pb;
+      if (hit === ia) hit = ib; else if (hit === ib) hit = ia;
+    }
+    shown = seats;
+    save();
+    render();
+  }
+
+  function setEdit(m) {
+    if (busy || m === editMode) return;
+    editMode = m;
+    if (m !== 'pin') pinSeat = -1;
+    render();
+  }
+
+  function joinAt(i) { if (busy) return; join[i] = true; ensureArrays(); save(); render(); }
+  function splitAt(i) { if (busy) return; join[i] = false; save(); render(); }
+  function setGroups(g) { if (busy) return; join = groupPattern(g); ensureArrays(); save(); render(); }
+
+  function pinStudent(no) {
+    if (busy || pinSeat < 0) return;
+    if (pins[pinSeat] === no) {
+      delete pins[pinSeat];
+    } else {
+      Object.keys(pins).forEach(function (k) { if (pins[k] === no) delete pins[k]; });
+      pins[pinSeat] = no;
+    }
+    save();
+    reset();
+  }
+
+  function makeJoiner(kind, text, aria, handler) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'joiner ' + kind;
+    b.textContent = text;
+    b.setAttribute('aria-label', aria);
+    b.addEventListener('click', handler);
+    return b;
+  }
+
+  function render() {
+    grid.className = 'grid' + (editMode === 'move' ? ' moving' : '');
+    grid.textContent = '';
+    for (var r = 0; r < rows; r++) {
+      var rowEl = document.createElement('div');
+      rowEl.className = 'rowg';
+      rowEl.style.setProperty('--cols', cols);
+      for (var c = 0; c < cols; ) {
+        var base = r * cols + c;
+        var n = 1;
+        while (c + n < cols && join[base + n - 1]) n++;
+        var slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.style.gridColumn = 'span ' + n;
+        var dk = document.createElement('button');
+        dk.type = 'button';
+        dk.style.setProperty('--k', n);
+        dk.setAttribute('data-r', r);
+        dk.setAttribute('data-s', c);
+        dk.setAttribute('data-n', n);
+        var allOff = true, hitHere = false, idxs = [];
+        for (var k = 0; k < n; k++) {
+          var i = base + k, no = shown[i];
+          idxs.push(i);
+          var st = document.createElement('span');
+          st.className = 'seat';
+          st.setAttribute('data-i', i);
+          var tg = document.createElement('span');
+          tg.className = 'tag';
+          if (excl[i]) {
+            st.className += ' vacant';
+            tg.className += ' x';
+            tg.textContent = '✕';
+          } else {
+            allOff = false;
+            if (no == null) {
+              st.className += ' vacant';
+              tg.className += ' blank';
+            } else {
+              var nm = nameOf(no);
+              var n1 = document.createElement('span');
+              n1.className = nm ? 'no sm' : 'no'; n1.textContent = no;
+              tg.appendChild(n1);
+              if (nm) {
+                var n2 = document.createElement('span');
+                n2.className = 'nm'; n2.textContent = nm;
+                n2.style.setProperty('--len', Math.max(2, Array.from(nm).length));
+                tg.appendChild(n2);
+              }
+              if (i === hit) { st.className += ' hit'; hitHere = true; }
+            }
+          }
+          if (editMode === 'pin' && i === pinSeat) st.className += ' sel';
+          st.appendChild(tg);
+          if (!excl[i] && no != null && pins[i] === no) {
+            var lk = document.createElement('span');
+            lk.className = 'lock';
+            lk.innerHTML = LOCK_SVG;
+            st.appendChild(lk);
+          }
+          dk.appendChild(st);
+        }
+        dk.className = 'desk' + (allOff ? ' off' : '') + (hitHere ? ' hit' : '');
+        dk.setAttribute('aria-pressed', allOff);
+        dk.setAttribute('aria-label', (r + 1) + '줄 ' + (c + 1) + '번째 책상' + (n >= 2 ? '(' + n + '명)' : '') +
+          (editMode === 'move' ? ', 끌어서 같은 크기의 책상과 바꾸기' :
+            editMode === 'join' ? '' :
+            editMode === 'pin' ? ', 자리를 눌러 학생 고정' :
+            allOff ? ', 제외됨. 누르면 다시 사용' : ', 누르면 제외'));
+        dk.addEventListener('click', clickDesk.bind(null, idxs));
+        slot.appendChild(dk);
+        if (editMode === 'join') {
+          for (var q = 1; q < n; q++) {
+            var sp = makeJoiner('split', '−', (r + 1) + '줄 ' + (c + q) + '번째와 ' + (c + q + 1) + '번째 사이 떼기', splitAt.bind(null, base + q - 1));
+            sp.style.left = (q / n * 100) + '%';
+            slot.appendChild(sp);
+          }
+          if (c + n < cols) {
+            slot.appendChild(makeJoiner('join', '+', (r + 1) + '줄 ' + (c + n) + '번째와 ' + (c + n + 1) + '번째 책상 붙이기', joinAt.bind(null, base + n - 1)));
+          }
+        }
+        rowEl.appendChild(slot);
+        c += n;
+      }
+      grid.appendChild(rowEl);
+    }
+    hintEl.textContent = (editMode === 'move'
+      ? '책상을 끌어서 다른 책상 위에 놓으면 서로 바뀌어요. 제외한 빈 책상과 바꾸면 책상만 옮겨져요. 자리 수가 같은 책상끼리 바꿀 수 있어요.'
+      : editMode === 'join'
+        ? '책상 사이의 +를 누르면 두 책상이 붙어요. 몇 명이든 이어 붙일 수 있어요. 붙은 책상 위쪽의 −를 누르면 그 자리에서 떨어져요.'
+        : editMode === 'pin'
+          ? '자리를 누르고 앉힐 학생을 고르면 그 학생은 그 자리에 고정돼요. 고정한 자리는 뽑기에서 빠지고 자물쇠가 붙어요. 고정을 바꾸면 뽑은 결과는 처음으로 돌아가요.'
+          : '책상을 누르면 제외되고, 한 번 더 누르면 돌아와요. 제외하면 뽑은 결과는 처음으로 돌아가요.') +
+      ' 칠판 쪽이 1줄이에요.';
+    renderPin();
+    renderRoster();
+    renderControls();
+  }
+
+  function renderPin() {
+    pinPanel.hidden = editMode !== 'pin';
+    if (editMode !== 'pin') return;
+    var has = pinSeat >= 0 && pinSeat < total() && !excl[pinSeat];
+    pinTitle.textContent = has ? posOf(pinSeat) + ' 자리에 앉힐 학생' : '고정할 자리를 눌러 주세요';
+    pinChips.hidden = !has;
+    pinClear.hidden = !(has && pins[pinSeat] != null);
+    pinAll.hidden = pinCount() === 0;
+    pinChips.textContent = '';
+    if (!has) return;
+    var where = {};
+    Object.keys(pins).forEach(function (k) { where[pins[k]] = +k; });
+    for (var no = 1; no <= count; no++) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      var here = pins[pinSeat] === no;
+      var else_ = where[no] != null && where[no] !== pinSeat;
+      b.className = 'chip' + (here ? ' on' : '') + (else_ ? ' else' : '');
+      b.setAttribute('aria-pressed', here);
+      b.textContent = no + (nameOf(no) ? ' ' + nameOf(no) : '');
+      if (else_) b.title = posOf(where[no]) + '에 고정됨 (누르면 이 자리로 옮겨요)';
+      b.addEventListener('click', pinStudent.bind(null, no));
+      pinChips.appendChild(b);
+    }
+  }
+
+  function renderRoster() {
+    roster.textContent = '';
+    var showMate = groupCount() > 0;
+    thMate.hidden = !showMate;
+    var where = {};
+    for (var i = 0; i < seats.length; i++) if (seats[i] != null) where[seats[i]] = i;
+    var placed = !(mode === 'all' && !drawn);
+    for (var no = 1; no <= count; no++) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = no + '번';
+      var b = document.createElement('td'); b.textContent = nameOf(no) || '-';
+      var p = document.createElement('td'); p.className = 'pos';
+      var at = placed ? where[no] : undefined;
+      var fixed = at != null && pins[at] === no;
+      p.textContent = at != null ? posOf(at) + (fixed ? ' (고정)' : '') : '-';
+      tr.appendChild(a); tr.appendChild(b); tr.appendChild(p);
+      if (showMate) {
+        var m = document.createElement('td'); m.className = 'mate';
+        m.textContent = at != null && mates(at).length ? mates(at).map(label).join(', ') : '-';
+        tr.appendChild(m);
+      }
+      roster.appendChild(tr);
+    }
+  }
+
+  function renderControls() {
+    mAll.setAttribute('aria-pressed', mode === 'all');
+    mOne.setAttribute('aria-pressed', mode === 'one');
+    edEx.setAttribute('aria-pressed', editMode === 'exclude');
+    edMv.setAttribute('aria-pressed', editMode === 'move');
+    edJn.setAttribute('aria-pressed', editMode === 'join');
+    edPin.setAttribute('aria-pressed', editMode === 'pin');
+    for (var g = 1; g <= 4; g++) {
+      var pat = groupPattern(g);
+      dkBtns[g].setAttribute('aria-pressed', pat.every(function (v, i) { return v === join[i]; }));
+    }
+    var gc = groupCount(), pc = pinCount();
+    var avail = availIdx().length;
+    var off = total() - avail;
+    var spare = avail - count;
+    var base = count + '명 · ' + cols + '열 × ' + rows + '줄' +
+      (off > 0 ? ' · 제외 ' + off + '자리' : '') +
+      (spare > 0 ? ' · 빈자리 ' + spare : '') +
+      (gc > 0 ? ' · 붙은 책상 ' + gc + '개' : '') +
+      (pc > 0 ? ' · 고정 ' + pc + '명' : '');
+    resetBtn.disabled = busy;
+    if (spare < 0) {
+      go.textContent = '자리가 모자라요';
+      go.disabled = true;
+      statusEl.textContent = '학생 ' + count + '명 · 쓸 수 있는 자리 ' + avail + '개. 제외한 책상을 다시 눌러 주세요.';
+    } else if (mode === 'all') {
+      go.textContent = drawn ? '다시 뽑기' : '자리 뽑기';
+      go.disabled = busy;
+      statusEl.textContent = base + (drawn ? ' · 뽑기 완료' : ' · 번호순 (섞기 전)');
+    } else if (next > count) {
+      go.textContent = '모두 뽑았어요';
+      go.disabled = true;
+      statusEl.textContent = base + ' · 뽑기 완료';
+    } else {
+      go.textContent = next + '번 뽑기';
+      go.disabled = busy;
+      var placedN = seats.filter(function (x) { return x != null; }).length;
+      statusEl.textContent = base + ' · ' + placedN + '명 배치';
+    }
+  }
+
+  function reset() {
+    ensureArrays();
+    drawn = false; hit = -1; busy = false;
+    announce.hidden = true;
+    copybox.hidden = true;
+    if (mode === 'all') {
+      seats = ordered();
+    } else {
+      seats = new Array(total()).fill(null);
+      Object.keys(pins).forEach(function (k) { seats[+k] = pins[k]; });
+    }
+    next = nextFree(1);
+    shown = seats;
+    render();
+  }
+
+  function drawAll() {
+    var n = freeSeats().length;
+    if (busy || availIdx().length < count) return;
+    var vals = studentValues(n);
+    var final = place(shuffle(vals));
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    announce.hidden = true;
+    copybox.hidden = true;
+    hit = -1;
+    if (reduce) {
+      seats = final; shown = final; drawn = true; render();
+      return;
+    }
+    busy = true;
+    var ticks = 0;
+    var timer = setInterval(function () {
+      ticks++;
+      if (ticks < 14) {
+        shown = place(shuffle(vals));
+      } else {
+        clearInterval(timer);
+        seats = final; shown = final; drawn = true; busy = false;
+      }
+      render();
+    }, 80);
+  }
+
+  function drawNext() {
+    if (busy || next > count) return;
+    var free = [];
+    for (var i = 0; i < seats.length; i++) if (seats[i] == null && !excl[i]) free.push(i);
+    if (!free.length) return;
+    var pick = free[rnd(free.length)];
+    var no = next;
+    seats[pick] = no;
+    shown = seats;
+    hit = pick;
+    announce.textContent = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = label(no) + ' → ' + posOf(pick);
+    announce.appendChild(big);
+    var size = deskSize(pick);
+    if (size >= 2) {
+      var ms = mates(pick);
+      var sub = document.createElement('div');
+      sub.className = 'sub';
+      sub.textContent = ms.length
+        ? (size === 2 ? '짝꿍: ' : '같은 책상: ') + ms.map(label).join(', ')
+        : '같은 책상에 아직 아무도 없어요';
+      announce.appendChild(sub);
+    }
+    announce.hidden = false;
+    next = nextFree(no + 1);
+    render();
+  }
+
+  function resultText() {
+    var gc = groupCount();
+    var lines = ['자리 배치 (칠판 쪽이 1줄' + (gc > 0 ? ', + 표시는 같은 책상' : '') + ', ✕는 제외한 자리' + (pinCount() > 0 ? ', *는 고정석' : '') + ')'];
+    for (var r = 0; r < rows; r++) {
+      var out = '';
+      for (var c = 0; c < cols; c++) {
+        var i = r * cols + c, no = seats[i];
+        var cell = excl[i] ? '✕' : no == null ? '-' : (nameOf(no) ? nameOf(no) + '(' + no + ')' : no) + (pins[i] === no ? '*' : '');
+        if (c > 0) out += join[i - 1] ? ' + ' : ' | ';
+        out += cell;
+      }
+      lines.push((r + 1) + '줄: ' + out);
+    }
+    return lines.join('\n');
+  }
+
+  function setMode(m) {
+    if (busy || m === mode) return;
+    mode = m; save(); reset();
+  }
+
+  function applySettings() {
+    var oc = cols, or = rows;
+    cols = clamp(inCols.value, 1, 10, cols);
+    rows = clamp(inRows.value, 1, 12, rows);
+    if (cols !== oc || rows !== or) { excl = []; join = []; pins = {}; pinSeat = -1; }
+    count = clamp(inCount.value, 1, total(), Math.min(count, total()));
+    inCols.value = cols; inRows.value = rows; inCount.value = count;
+    ensureArrays();
+    save(); buildNameFields(); reset();
+  }
+
+  go.addEventListener('click', function () { mode === 'all' ? drawAll() : drawNext(); });
+  resetBtn.addEventListener('click', reset);
+  mAll.addEventListener('click', function () { setMode('all'); });
+  mOne.addEventListener('click', function () { setMode('one'); });
+  [1, 2, 3, 4].forEach(function (g) { dkBtns[g].addEventListener('click', function () { setGroups(g); }); });
+  edEx.addEventListener('click', function () { setEdit('exclude'); });
+  edMv.addEventListener('click', function () { setEdit('move'); });
+  edJn.addEventListener('click', function () { setEdit('join'); });
+  edPin.addEventListener('click', function () { setEdit('pin'); });
+  pinClear.addEventListener('click', function () {
+    if (busy || pinSeat < 0) return;
+    delete pins[pinSeat]; save(); reset();
+  });
+  pinAll.addEventListener('click', function () {
+    if (busy) return;
+    pins = {}; save(); reset();
+  });
+  [inCols, inRows, inCount].forEach(function (el) { el.addEventListener('change', applySettings); });
+
+  function deskUnder(x, y, self) {
+    var list = document.elementsFromPoint ? document.elementsFromPoint(x, y) : [];
+    for (var i = 0; i < list.length; i++) {
+      var d = list[i].closest ? list[i].closest('.desk') : null;
+      if (d && d !== self) return d;
+    }
+    return null;
+  }
+  grid.addEventListener('contextmenu', function (e) { if (editMode === 'move') e.preventDefault(); });
+  grid.addEventListener('pointerdown', function (e) {
+    if (editMode !== 'move' || busy) return;
+    var d = e.target.closest ? e.target.closest('.desk') : null;
+    if (!d) return;
+    drag = { el: d, x: e.clientX, y: e.clientY, on: false, target: null };
+  });
+  window.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.on) {
+      if (Math.abs(dx) + Math.abs(dy) < 8) return;
+      drag.on = true;
+      drag.el.classList.add('dragging');
+    }
+    drag.el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    var t = deskUnder(e.clientX, e.clientY, drag.el);
+    if (t && t.getAttribute('data-n') !== drag.el.getAttribute('data-n')) t = null;
+    if (drag.target && drag.target !== t) drag.target.classList.remove('drop');
+    if (t) t.classList.add('drop');
+    drag.target = t;
+    e.preventDefault();
+  });
+  function endDrag(cancel) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    if (!d.on) return;
+    d.el.classList.remove('dragging');
+    d.el.style.transform = '';
+    if (d.target) d.target.classList.remove('drop');
+    if (!cancel && d.target) swapDesks(d.el, d.target); else render();
+  }
+  window.addEventListener('pointerup', function () { endDrag(false); });
+  window.addEventListener('pointercancel', function () { endDrag(true); });
+
+  nameFields.addEventListener('input', function (e) {
+    var t = e.target, idx = t.getAttribute('data-i');
+    if (idx == null) return;
+    var i = parseInt(idx, 10), arr = names();
+    while (arr.length <= i) arr.push('');
+    arr[i] = t.value;
+    setNames(arr);
+    inNames.value = namesText;
+    render();
+  });
+  nameFields.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var i = parseInt(e.target.getAttribute('data-i'), 10);
+    var nxt = $('nm' + (i + 2));
+    if (nxt) nxt.focus(); else e.target.blur();
+  });
+  inNames.addEventListener('input', function () {
+    namesText = inNames.value; save(); buildNameFields(); render();
+  });
+
+  copyBtn.addEventListener('click', function () {
+    var text = resultText();
+    var fallback = function () {
+      copytext.value = text;
+      copybox.hidden = false;
+      copytext.focus(); copytext.select();
+    };
+    try {
+      navigator.clipboard.writeText(text).then(function () {
+        var old = copyBtn.textContent;
+        copyBtn.textContent = '복사했어요';
+        setTimeout(function () { copyBtn.textContent = old; }, 1400);
+      }, fallback);
+    } catch (e) { fallback(); }
+  });
+
+  load();
+  ensureArrays();
+  inCols.value = cols; inRows.value = rows; inCount.value = count; inNames.value = namesText;
+  buildNameFields();
+  reset();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
