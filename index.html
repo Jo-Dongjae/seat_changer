@@ -294,8 +294,6 @@ input[type="number"], input[type="text"], textarea {
 .bulk { margin-top: 4px; }
 .bulk summary { font-weight: 500; font-size: 13px; color: var(--muted); }
 .bulk textarea { min-height: 120px; resize: vertical; line-height: 1.5; margin-top: 8px; }
-.copybox { display: flex; flex-direction: column; gap: 4px; }
-.copybox textarea { min-height: 130px; font-size: 13px; }
 
 .tablewrap { overflow-x: auto; margin-top: 12px; max-height: 360px; overflow-y: auto; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -399,12 +397,7 @@ td.pos, td.mate { color: var(--muted); }
     <button type="button" class="go" id="go">자리 뽑기</button>
     <div class="row">
       <button type="button" class="ghost" id="reset">처음으로</button>
-      <button type="button" class="ghost" id="copy">결과 복사</button>
       <button type="button" class="ghost" id="print">인쇄하기</button>
-    </div>
-    <div class="copybox" id="copybox" hidden>
-      <span class="lab">아래 글을 길게 눌러 복사하세요.</span>
-      <textarea id="copytext" readonly></textarea>
     </div>
   </section>
 
@@ -468,13 +461,13 @@ td.pos, td.mate { color: var(--muted); }
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var grid = $('grid'), statusEl = $('status'), announce = $('announce'), go = $('go'), hintEl = $('hint');
-  var mAll = $('mAll'), mOne = $('mOne'), resetBtn = $('reset'), copyBtn = $('copy');
+  var mAll = $('mAll'), mOne = $('mOne'), resetBtn = $('reset');
   var dkBtns = [null, $('dk1'), $('dk2'), $('dk3'), $('dk4')];
   var edEx = $('edEx'), edMv = $('edMv'), edJn = $('edJn'), edPin = $('edPin');
   var pinPanel = $('pinPanel'), pinTitle = $('pinTitle'), pinChips = $('pinChips'), pinClear = $('pinClear'), pinAll = $('pinAll');
   var inCols = $('inCols'), inRows = $('inRows'), inCount = $('inCount'), inNames = $('inNames');
   var nameFields = $('nameFields'), thMate = $('thMate'), inGaps = $('inGaps');
-  var roster = $('roster'), copybox = $('copybox'), copytext = $('copytext');
+  var roster = $('roster');
   var KEY = 'seatpicker.v1';
   var printBtn = $('print'), pv = $('printView'), pvImg = $('pvImg'), pvTitle = $('pvTitle'), pvMsg = $('pvMsg'), pvFrom = $('pvFrom'), pvTo = $('pvTo'), pvDateClr = $('pvDateClr'), pvRoster = $('pvRoster');
   var pvSave = $('pvSave'), pvClose = $('pvClose'), pvPrint = $('pvPrint'), pvWarn = $('pvWarn');
@@ -978,7 +971,6 @@ td.pos, td.mate { color: var(--muted); }
     ensureArrays();
     drawn = false; hit = -1; busy = false;
     announce.hidden = true;
-    copybox.hidden = true;
     if (mode === 'all') {
       seats = ordered();
     } else {
@@ -997,7 +989,6 @@ td.pos, td.mate { color: var(--muted); }
     var final = place(shuffle(vals));
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     announce.hidden = true;
-    copybox.hidden = true;
     hit = -1;
     if (reduce) {
       seats = final; shown = final; drawn = true; render();
@@ -1045,22 +1036,6 @@ td.pos, td.mate { color: var(--muted); }
     announce.hidden = false;
     next = nextFree(no + 1);
     render();
-  }
-
-  function resultText() {
-    var gc = groupCount();
-    var lines = ['자리 배치 (칠판 쪽이 1줄' + (gc > 0 ? ', + 표시는 같은 책상' : '') + ', ✕는 제외한 자리' + (pinCount() > 0 ? ', *는 고정석' : '') + ')'];
-    for (var r = 0; r < rows; r++) {
-      var out = '';
-      for (var c = 0; c < cols; c++) {
-        var i = r * cols + c, no = seats[i];
-        var cell = excl[i] ? '✕' : no == null ? '-' : (nameOf(no) ? nameOf(no) + '(' + no + ')' : no) + (pins[i] === no ? '*' : '');
-        if (c > 0) out += join[i - 1] ? ' + ' : ' | ';
-        out += cell;
-      }
-      lines.push((r + 1) + '줄: ' + out);
-    }
-    return lines.join('\n');
   }
 
   function setMode(m) {
@@ -1132,7 +1107,7 @@ td.pos, td.mate { color: var(--muted); }
     text(dateStr, 287, 13, 4.2, FB, '#555', 'right');
     line(10, 19, 287, 19, 0.4, '#333');
 
-    var x0 = 10, top = 25, bottom = 200, cw = showRoster ? 210 : 277;
+    var x0 = 10, top = 25, bottom = 200, cw = showRoster ? 224 : 277;
     /* 교실을 뒤에서 본 모습: 칠판과 교탁이 아래쪽, 앞줄이 맨 아래 */
     function drawBoard(bY) {
       box(x0, bY, cw, 8, 1.5); g.fillStyle = '#333'; g.fill();
@@ -1183,20 +1158,20 @@ td.pos, td.mate { color: var(--muted); }
     function drawSeat(no, sx, y, i) {
       var nm = nameOf(no), cx = sx + seatW / 2, maxW = seatW - 3;
       if (nm) {
-        var NS = 4.2, mid = y + rowH / 2;
+        var NS = 3.4, NG = 3.4, mid = y + rowH / 2;
         var s = fit(nm, maxW, Math.min(9, rowH * 0.4), 3.2, FD);
         if (g.measureText(nm).width > mm(maxW) && Array.from(nm).length > 3) {
           var chars = Array.from(nm), half = Math.ceil(chars.length / 2);
           var a = chars.slice(0, half).join(''), b = chars.slice(half).join('');
           var s2 = fit(a.length >= b.length ? a : b, maxW, Math.min(6, rowH * 0.28), 3, FD);
-          var h2 = NS + 1 + s2 * 2.05, t2 = mid - h2 / 2;
+          var h2 = NS + NG + s2 * 2.05, t2 = mid - h2 / 2;
           text(String(no), cx, t2 + NS / 2, NS, FB, '#666', 'center');
-          text(a, cx, t2 + NS + 1 + s2 / 2, s2, FD, '#111', 'center');
-          text(b, cx, t2 + NS + 1 + s2 * 1.55, s2, FD, '#111', 'center');
+          text(a, cx, t2 + NS + NG + s2 / 2, s2, FD, '#111', 'center');
+          text(b, cx, t2 + NS + NG + s2 * 1.55, s2, FD, '#111', 'center');
         } else {
-          var h1 = NS + 1 + s, t1 = mid - h1 / 2;
+          var h1 = NS + NG + s, t1 = mid - h1 / 2;
           text(String(no), cx, t1 + NS / 2, NS, FB, '#666', 'center');
-          text(nm, cx, t1 + NS + 1 + s / 2, s, FD, '#111', 'center');
+          text(nm, cx, t1 + NS + NG + s / 2, s, FD, '#111', 'center');
         }
       } else {
         text(String(no), cx, y + rowH / 2, Math.min(12, rowH * 0.5), FD, '#111', 'center');
@@ -1228,14 +1203,17 @@ td.pos, td.mate { color: var(--muted); }
     }
 
     if (showRoster) {
-      var rx = 227, rw = 60, rtop = 25;
-      text('명렬표', rx, rtop + 3, 4.5, FD, '#111', 'left');
+      var rx = 241, rw = 46, rtop = 25;
       var colsR = Math.ceil(count / 32), per = Math.ceil(count / colsR);
       var cwid = (rw - (colsR - 1) * 3) / colsR;
-      var hh = 6, ty = rtop + 8, rh = Math.min(6.3, (bottom - ty - hh) / per);
+      var hh = 6, rh = Math.min(6.3, (bottom - rtop - 8 - hh) / per);
+      var blockH = 8 + hh + per * rh;
+      rtop = rtop + Math.max(0, (bottom - rtop - blockH) / 2);
+      var ty = rtop + 8;
+      text('명렬표', rx + rw / 2, rtop + 3, 4.5, FD, '#111', 'center');
       for (var cc = 0; cc < colsR; cc++) {
         var cx0 = rx + cc * (cwid + 3);
-        text('번호', cx0 + 1, ty + hh / 2, 3.3, FB, '#444', 'left');
+        text('번호', cx0 + 6, ty + hh / 2, 3.3, FB, '#444', 'center');
         text('이름', cx0 + 12 + (cwid - 12) / 2, ty + hh / 2, 3.3, FB, '#444', 'center');
         line(cx0, ty + hh, cx0 + cwid, ty + hh, 0.4, '#222');
         for (var t = 0; t < per; t++) {
@@ -1244,11 +1222,11 @@ td.pos, td.mate { color: var(--muted); }
           var ry = ty + hh + t * rh, fs = Math.min(4.4, rh * 0.66);
           line(cx0, ry + rh, cx0 + cwid, ry + rh, 0.2, '#ccc');
           if (gap[no2]) {
-            text(String(no2), cx0 + 1, ry + rh / 2, fs, FB, '#999', 'left');
+            text(String(no2), cx0 + 6, ry + rh / 2, fs, FB, '#999', 'center');
             text('결번', cx0 + 12 + (cwid - 12) / 2, ry + rh / 2, fs, FB, '#999', 'center');
             continue;
           }
-          text(String(no2), cx0 + 1, ry + rh / 2, fs, FB, '#111', 'left');
+          text(String(no2), cx0 + 6, ry + rh / 2, fs, FB, '#111', 'center');
           var nm2 = nameOf(no2);
           if (nm2) {
             var s3 = fit(nm2, cwid - 13, fs, 2.5, FB);
@@ -1415,22 +1393,6 @@ td.pos, td.mate { color: var(--muted); }
   });
   inNames.addEventListener('input', function () {
     namesText = inNames.value; save(); buildNameFields(); render();
-  });
-
-  copyBtn.addEventListener('click', function () {
-    var text = resultText();
-    var fallback = function () {
-      copytext.value = text;
-      copybox.hidden = false;
-      copytext.focus(); copytext.select();
-    };
-    try {
-      navigator.clipboard.writeText(text).then(function () {
-        var old = copyBtn.textContent;
-        copyBtn.textContent = '복사했어요';
-        setTimeout(function () { copyBtn.textContent = old; }, 1400);
-      }, fallback);
-    } catch (e) { fallback(); }
   });
 
   load();
