@@ -268,6 +268,9 @@ input[type="number"], input[type="text"], textarea {
 .xbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: -14px; background: var(--bg); padding: 4px 0 8px; font-size: 17px; }
 #printView.roster-only .pv-titlef, #printView.roster-only .pv-msgf, #printView.roster-only .pv-check { display: none; }
 @media print { .gear, .xview { display: none !important; } }
+.mini-fig { display: flex; align-items: center; gap: 10px; }
+.mini-fig svg { flex: none; width: 108px; height: auto; }
+.mini-fig p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
 .apart + .apart { margin-top: 22px; }
 #apartAdd, #togAdd { align-self: stretch; padding: 12px; font-size: 15px; font-weight: 600; border-radius: 10px; }
 #apartAdd:not(:disabled), #togAdd:not(:disabled) { background: var(--focus); color: var(--on-focus); border-color: var(--focus); }
@@ -349,6 +352,7 @@ td.pos, td.mate { color: var(--muted); }
         <div class="pinbtns">
           <button type="button" class="mini" id="pinClear" hidden>이 자리 고정 풀기</button>
           <button type="button" class="mini" id="pinAll" hidden>전체 풀기</button>
+          <button type="button" class="mini" id="pinClose">닫기</button>
         </div>
       </div>
       <div class="chips" id="pinChips" role="group" aria-label="앉힐 학생"></div>
@@ -439,6 +443,7 @@ td.pos, td.mate { color: var(--muted); }
       <div class="xbar"><strong>추가 설정</strong><button type="button" class="mini" id="extraClose">닫기</button></div>
       <div class="apart">
         <span class="lab">떨어뜨릴 학생 (같은 묶음끼리는 가까이 앉지 않아요)</span>
+        <div class="mini-fig" id="apartDiag"></div>
         <div class="seg" style="--n:2" role="group" aria-label="떨어뜨리는 거리">
           <button type="button" id="ad1" aria-pressed="true">바로 옆까지</button>
           <button type="button" id="ad2" aria-pressed="false">두 칸 이내까지</button>
@@ -453,12 +458,14 @@ td.pos, td.mate { color: var(--muted); }
       </div>
       <div class="apart">
         <span class="lab">집중이 필요한 학생 (네 모서리 자리 중 한 곳에 앉아요)</span>
+        <div class="mini-fig" id="focDiag"></div>
         <p class="hint" style="margin:0">각 모서리 칸과 그 옆 가로 1칸·세로 1칸, 모서리마다 3칸이에요. 앉힐 학생을 누르면 선택돼요.</p>
         <div class="chips" id="focChips" role="group" aria-label="집중이 필요한 학생 고르기"></div>
         <p class="hint" id="focInfo" style="margin:0"></p>
       </div>
       <div class="apart">
         <span class="lab">붙여 앉힐 학생 (같은 묶음끼리는 가까운 자리에 앉아요)</span>
+        <div class="mini-fig" id="togDiag"></div>
         <div class="seg" style="--n:2" role="group" aria-label="붙여 앉히는 거리">
           <button type="button" id="td1" aria-pressed="true">바로 옆까지</button>
           <button type="button" id="td2" aria-pressed="false">두 칸 이내까지</button>
@@ -895,7 +902,35 @@ td.pos, td.mate { color: var(--muted); }
     }
     $('focInfo').textContent = foc.length ? '선택한 학생: ' + foc.length + '명' : '선택한 학생이 없어요.';
   }
+  function miniFig(el, kind, dist) {
+    var C = 6, R = 5, S = 14, G = 4, W = C * (S + G) - G, top = 12, H = top + R * (S + G) - G;
+    var cr = 2, cc = 2, out = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true"><rect x="0" y="0" width="' + W + '" height="6" rx="2" fill="#9AA5A0"/>';
+    for (var r = 0; r < R; r++) for (var c = 0; c < C; c++) {
+      var fill = '#D6DCD9', lab = '', near = Math.max(Math.abs(r - cr), Math.abs(c - cc)) <= dist;
+      if (kind === 'foc') {
+        var inC = (r <= 1 && c <= 1 && !(r === 1 && c === 1)) || (r <= 1 && c >= C - 2 && !(r === 1 && c === C - 2)) ||
+                  (r >= R - 2 && c <= 1 && !(r === R - 2 && c === 1)) || (r >= R - 2 && c >= C - 2 && !(r === R - 2 && c === C - 2));
+        if (inC) fill = '#BFE3C6';
+      } else if (r === cr && c === cc) { fill = '#1d2b25'; }
+      else if (near) fill = kind === 'apart' ? '#F2C3BD' : '#BFE3C6';
+      var x = c * (S + G), y = top + r * (S + G);
+      out += '<rect x="' + x + '" y="' + y + '" width="' + S + '" height="' + S + '" rx="3" fill="' + fill + '"/>';
+      if (kind !== 'foc' && near && !(r === cr && c === cc)) out += '<text x="' + (x + S / 2) + '" y="' + (y + S / 2 + 3.5) + '" font-size="10" text-anchor="middle" fill="' + (kind === 'apart' ? '#B3382C' : '#1F6B3A') + '" font-weight="700">' + (kind === 'apart' ? '×' : '○') + '</text>';
+    }
+    if (kind === 'foc') {
+      [['A', 0, 0], ['B', 0, C - 2], ['C', R - 2, 0], ['D', R - 2, C - 2]].forEach(function (k) {
+        out += '<text x="' + (k[2] * (S + G) + S + G / 2) + '" y="' + (top + k[1] * (S + G) + S + 3.5) + '" font-size="11" text-anchor="middle" font-weight="700" fill="#1d2b25">' + k[0] + '</text>';
+      });
+    }
+    var cap = kind === 'apart' ? '검은 칸이 한 학생이에요. 같은 묶음의 다른 학생은 ×칸(' + (dist === 1 ? '둘레 한 칸' : '둘레 두 칸') + ')에 앉지 않아요.'
+      : kind === 'tog' ? '검은 칸이 한 학생이에요. 같은 묶음의 다른 학생은 ○칸(' + (dist === 1 ? '둘레 한 칸' : '둘레 두 칸') + ') 안에 앉아요.'
+      : '초록 칸이 모서리 자리예요. 선택한 학생은 A~D 네 곳 중 한 곳에 앉아요.';
+    el.innerHTML = out + '</svg><p>' + cap + '</p>';
+  }
   function renderApart() {
+    miniFig($('apartDiag'), 'apart', apartDist);
+    miniFig($('togDiag'), 'tog', togDist);
+    miniFig($('focDiag'), 'foc', 1);
     renderFoc();
     renderRule(RU.apart, '  ↔  ');
     renderRule(RU.tog, '  +  ');
@@ -1662,6 +1697,10 @@ td.pos, td.mate { color: var(--muted); }
   edMv.addEventListener('click', function () { setEdit('move'); });
   edJn.addEventListener('click', function () { setEdit('join'); });
   edPin.addEventListener('click', function () { setEdit('pin'); });
+  $('pinClose').addEventListener('click', function () {
+    if (busy) return;
+    pinSeat = -1; editMode = ''; render();
+  });
   pinClear.addEventListener('click', function () {
     if (busy || pinSeat < 0) return;
     delete pins[pinSeat]; save(); reset();
