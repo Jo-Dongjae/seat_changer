@@ -206,6 +206,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus
   padding: 14px;
   display: flex; flex-direction: column; gap: 12px;
 }
+#settings[open] { display: flex; flex-direction: column; gap: 12px; }
+.sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
 .lab { font-size: 12px; color: var(--muted); }
 .group { display: flex; flex-direction: column; gap: 6px; }
 .seg { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--bg); border-radius: 10px; }
@@ -247,6 +249,24 @@ input[type="number"], input[type="text"], textarea {
 .nf input:disabled { background: transparent; opacity: .6; }
 .gapbtn { flex: none; font: inherit; font-size: 11px; padding: 6px 7px; border-radius: 8px; border: 1px solid var(--line, currentColor); background: transparent; color: var(--muted); cursor: pointer; min-height: 32px; }
 .gapbtn[aria-pressed="true"] { background: var(--focus); color: var(--on-focus); border-color: var(--focus); }
+.apart { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.addbox { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+.gear { position: fixed; right: 14px; bottom: 14px; z-index: 20; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted); opacity: .6; cursor: pointer; padding: 0; }
+.gear:hover, .gear:focus-visible { opacity: 1; }
+.xview { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; }
+.xview[hidden] { display: none; }
+.xbox { background: var(--bg); width: min(560px, 100%); max-height: 88vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 700px) { .xview { align-items: center; } .xbox { border-radius: 16px; } }
+.xbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: -14px; background: var(--bg); padding: 4px 0 8px; font-size: 17px; }
+#printView.roster-only .pv-titlef, #printView.roster-only .pv-msgf, #printView.roster-only .pv-check { display: none; }
+@media print { .gear, .xview { display: none !important; } }
+.apart + .apart { margin-top: 22px; }
+#apartAdd, #togAdd { align-self: stretch; padding: 12px; font-size: 15px; font-weight: 600; border-radius: 10px; }
+#apartAdd:not(:disabled), #togAdd:not(:disabled) { background: var(--focus); color: var(--on-focus); border-color: var(--focus); }
+.apartlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.apartlist li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; font-size: 13px; }
+.apartlist .who { flex: 1; min-width: 0; line-height: 1.5; }
+.apartlist button { flex: none; }
 .gapfield { margin: 10px 0; }
 .gapfield input { width: 100%; }
 .bulk { margin-top: 4px; }
@@ -315,6 +335,22 @@ td.pos, td.mate { color: var(--muted); }
     <div class="board">칠 판</div>
     <div class="podium">교 탁</div>
     <div class="grid" id="grid"></div>
+    <div class="pinpanel" id="pinPanel" hidden>
+      <div class="pinhead">
+        <strong id="pinTitle"></strong>
+        <div class="pinbtns">
+          <button type="button" class="mini" id="pinClear" hidden>이 자리 고정 풀기</button>
+          <button type="button" class="mini" id="pinAll" hidden>전체 풀기</button>
+        </div>
+      </div>
+      <div class="chips" id="pinChips" role="group" aria-label="앉힐 학생"></div>
+    </div>
+    <p class="hint" id="hint"></p>
+  </section>
+
+  <section class="panel">
+    <details id="settings" open>
+      <summary>설정</summary>
     <div class="group">
       <span class="lab">책상 편집</span>
       <div class="seg" style="--n:2" role="group" aria-label="책상 편집 방식">
@@ -333,22 +369,7 @@ td.pos, td.mate { color: var(--muted); }
         <button type="button" id="dk4" aria-pressed="false">4명씩</button>
       </div>
     </div>
-    <div class="pinpanel" id="pinPanel" hidden>
-      <div class="pinhead">
-        <strong id="pinTitle"></strong>
-        <div class="pinbtns">
-          <button type="button" class="mini" id="pinClear" hidden>이 자리 고정 풀기</button>
-          <button type="button" class="mini" id="pinAll" hidden>전체 풀기</button>
-        </div>
-      </div>
-      <div class="chips" id="pinChips" role="group" aria-label="앉힐 학생"></div>
-    </div>
-    <p class="hint" id="hint"></p>
-  </section>
-
-  <section class="panel">
-    <details id="settings" open>
-      <summary>설정 · 이름 입력</summary>
+      <hr class="sep">
       <div class="fields">
         <div class="field"><label for="inCols">가로(열)</label><input id="inCols" type="number" inputmode="numeric" min="1" max="10"></div>
         <div class="field"><label for="inRows">세로(줄)</label><input id="inRows" type="number" inputmode="numeric" min="1" max="12"></div>
@@ -380,6 +401,7 @@ td.pos, td.mate { color: var(--muted); }
     <div class="row">
       <button type="button" class="ghost" id="reset">처음으로</button>
       <button type="button" class="ghost" id="print">인쇄하기</button>
+      <button type="button" class="ghost" id="printRoster">명렬표만 인쇄</button>
     </div>
   </section>
 
@@ -388,12 +410,55 @@ td.pos, td.mate { color: var(--muted); }
       <summary>명렬표 (번호별 자리)</summary>
       <div class="tablewrap">
         <table>
-          <thead><tr><th>번호</th><th>이름</th><th>자리</th><th id="thMate">같은 책상</th></tr></thead>
+          <thead><tr><th>번호</th><th>이름</th></tr></thead>
           <tbody id="roster"></tbody>
         </table>
       </div>
     </details>
   </section>
+
+  <button type="button" class="gear" id="gearBtn" aria-label="추가 설정 열기" title="추가 설정">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg>
+  </button>
+  <div class="xview" id="extraView" role="dialog" aria-modal="true" aria-label="추가 설정" hidden>
+    <div class="xbox">
+      <div class="xbar"><strong>추가 설정</strong><button type="button" class="mini" id="extraClose">닫기</button></div>
+      <div class="apart">
+        <span class="lab">떨어뜨릴 학생 (같은 묶음끼리는 가까이 앉지 않아요)</span>
+        <div class="seg" style="--n:2" role="group" aria-label="떨어뜨리는 거리">
+          <button type="button" id="ad1" aria-pressed="true">바로 옆까지</button>
+          <button type="button" id="ad2" aria-pressed="false">두 칸 이내까지</button>
+        </div>
+        <ul class="apartlist" id="apartList"></ul>
+        <div class="addbox">
+          <span class="lab">묶음 추가</span>
+          <p class="hint" style="margin:0">떨어뜨릴 학생을 두 명 이상 고른 뒤 아래 버튼을 눌러요.</p>
+          <div class="chips" id="apartChips" role="group" aria-label="떨어뜨릴 학생 고르기"></div>
+          <button type="button" class="mini" id="apartAdd" disabled>묶음 추가</button>
+        </div>
+      </div>
+      <div class="apart">
+        <span class="lab">집중이 필요한 학생 (네 모서리 자리 중 한 곳에 앉아요)</span>
+        <p class="hint" style="margin:0">각 모서리 칸과 그 옆 가로 1칸·세로 1칸, 모서리마다 3칸이에요. 앉힐 학생을 누르면 선택돼요.</p>
+        <div class="chips" id="focChips" role="group" aria-label="집중이 필요한 학생 고르기"></div>
+        <p class="hint" id="focInfo" style="margin:0"></p>
+      </div>
+      <div class="apart">
+        <span class="lab">붙여 앉힐 학생 (같은 묶음끼리는 가까운 자리에 앉아요)</span>
+        <div class="seg" style="--n:2" role="group" aria-label="붙여 앉히는 거리">
+          <button type="button" id="td1" aria-pressed="true">바로 옆까지</button>
+          <button type="button" id="td2" aria-pressed="false">두 칸 이내까지</button>
+        </div>
+        <ul class="apartlist" id="togList"></ul>
+        <div class="addbox">
+          <span class="lab">묶음 추가</span>
+          <p class="hint" style="margin:0">붙여 앉힐 학생을 두 명 이상 고른 뒤 아래 버튼을 눌러요.</p>
+          <div class="chips" id="togChips" role="group" aria-label="붙여 앉힐 학생 고르기"></div>
+          <button type="button" class="mini" id="togAdd" disabled>묶음 추가</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="printview" id="printView" role="dialog" aria-modal="true" aria-label="인쇄 미리보기" hidden>
@@ -404,8 +469,8 @@ td.pos, td.mate { color: var(--muted); }
       <a class="ghost pv-save" id="pvSave" download="자리배치표.png" href="#">그림 저장</a>
     </div>
     <div class="pv-opts">
-      <label class="pv-field">제목 <input id="pvTitle" type="text" maxlength="30" autocomplete="off"></label>
-      <label class="pv-field">한마디 <textarea id="pvMsg" rows="3" maxlength="150" placeholder="담임 선생님 한마디 (엔터로 줄바꿈, 비우면 안 나와요)"></textarea></label>
+      <label class="pv-field pv-titlef">제목 <input id="pvTitle" type="text" maxlength="30" autocomplete="off"></label>
+      <label class="pv-field pv-msgf">한마디 <textarea id="pvMsg" rows="3" maxlength="150" placeholder="담임 선생님 한마디 (엔터로 줄바꿈, 비우면 안 나와요)"></textarea></label>
       <div class="pv-field">기간
         <input id="pvFrom" type="date" aria-label="시작일">
         <span>~</span>
@@ -416,7 +481,7 @@ td.pos, td.mate { color: var(--muted); }
     </div>
     <p class="pv-warn" id="pvWarn" hidden></p>
     <img id="pvImg" alt="자리 배치표 미리보기">
-    <p class="hint">A4 가로 한 장으로 인쇄돼요. 인쇄창이 열리지 않으면 위 그림을 길게 눌러 저장한 뒤 갤러리나 프린터 앱에서 인쇄하세요.</p>
+    <p class="hint">A4 한 장으로 인쇄돼요. (자리 배치표는 가로, 명렬표만은 세로) 인쇄창이 열리지 않으면 위 그림을 길게 눌러 저장한 뒤 갤러리나 프린터 앱에서 인쇄하세요.</p>
   </div>
 </div>
 <script>
@@ -428,7 +493,8 @@ td.pos, td.mate { color: var(--muted); }
   var edEx = $('edEx'), edMv = $('edMv'), edJn = $('edJn'), edPin = $('edPin');
   var pinPanel = $('pinPanel'), pinTitle = $('pinTitle'), pinChips = $('pinChips'), pinClear = $('pinClear'), pinAll = $('pinAll');
   var inCols = $('inCols'), inRows = $('inRows'), inCount = $('inCount'), inNames = $('inNames');
-  var nameFields = $('nameFields'), thMate = $('thMate'), inGaps = $('inGaps');
+  var nameFields = $('nameFields'), inGaps = $('inGaps');
+  var apartList = $('apartList'), apartChips = $('apartChips'), apartAdd = $('apartAdd'), ad1 = $('ad1'), ad2 = $('ad2');
   var roster = $('roster');
   var KEY = 'seatpicker.v1';
   var printBtn = $('print'), pv = $('printView'), pvImg = $('pvImg'), pvTitle = $('pvTitle'), pvMsg = $('pvMsg'), pvFrom = $('pvFrom'), pvTo = $('pvTo'), pvDateClr = $('pvDateClr'), pvRoster = $('pvRoster');
@@ -438,6 +504,9 @@ td.pos, td.mate { color: var(--muted); }
 
   var cols = 5, rows = 6, count = 30, namesText = '', mode = 'all';
   var gap = {};
+  var apart = [], apartDist = 1, apartSel = {};
+  var tog = [], togDist = 1, togSel = {};
+  var foc = [];
   var excl = [], join = [], pins = {};
   var editMode = '', pinSeat = -1, drag = null;
   var seats = [], shown = [], next = 1, hit = -1, drawn = false, busy = false;
@@ -465,6 +534,7 @@ td.pos, td.mate { color: var(--muted); }
     join.length = n;
     for (i = 0; i < n; i++) if (i % cols === cols - 1) join[i] = false;
     Object.keys(gap).forEach(function (k) { if (+k < 1 || +k > count) delete gap[k]; });
+    cleanApart();
     var seen = {};
     Object.keys(pins).forEach(function (k) {
       var si = +k, no = pins[k];
@@ -486,6 +556,132 @@ td.pos, td.mate { color: var(--muted); }
   function pinCount() { return Object.keys(pins).length; }
   function gapCount() { return Object.keys(gap).length; }
   function activeCount() { return count - gapCount(); }
+
+  /* ---- 떨어뜨리기: 같은 묶음의 학생끼리는 가까이 앉지 않게 ---- */
+  function cleanList(list) {
+    var out = [];
+    list.forEach(function (g) {
+      var seen = {}, m = [];
+      (g || []).forEach(function (no) {
+        no = +no;
+        if (no >= 1 && no <= count && !gap[no] && !seen[no]) { seen[no] = true; m.push(no); }
+      });
+      if (m.length >= 2) out.push(m);
+    });
+    return out;
+  }
+  function cleanApart() {
+    apart = cleanList(apart); tog = cleanList(tog);
+    var seen = {};
+    foc = foc.map(Number).filter(function (n) {
+      if (n >= 1 && n <= count && !gap[n] && !seen[n]) { seen[n] = true; return true; }
+      return false;
+    });
+  }
+  /* 쓰는 자리의 네 모서리마다 모서리 칸과 그 옆 가로 1칸·세로 1칸(총 3칸) */
+  function cornerSeats() {
+    var av = availIdx(), set = {};
+    if (!av.length) return set;
+    var r0 = 1e9, r1 = -1, c0 = 1e9, c1 = -1;
+    av.forEach(function (i) {
+      var r = Math.floor(i / cols), c = i % cols;
+      if (r < r0) r0 = r; if (r > r1) r1 = r; if (c < c0) c0 = c; if (c > c1) c1 = c;
+    });
+    [[r0, c0, 1, 1], [r0, c1, 1, -1], [r1, c0, -1, 1], [r1, c1, -1, -1]].forEach(function (k) {
+      [[k[0], k[1]], [k[0], k[1] + k[3]], [k[0] + k[2], k[1]]].forEach(function (p) {
+        if (p[0] < r0 || p[0] > r1 || p[1] < c0 || p[1] > c1) return;
+        var i = p[0] * cols + p[1];
+        if (!excl[i]) set[i] = true;
+      });
+    });
+    return set;
+  }
+  function seatNear(a, b, d) {
+    d = d || apartDist;
+    var dr = Math.abs(Math.floor(a / cols) - Math.floor(b / cols)), dc = Math.abs((a % cols) - (b % cols));
+    return Math.max(dr, dc) <= d;
+  }
+  /* arr = 자리별 학생 번호. 어긴 조건의 수와, 옮겨도 되는 자리 목록 */
+  function checkApart(arr, locked) {
+    var pos = {}, n = 0, mv = [], pinned = {};
+    locked = locked || {};
+    Object.keys(pins).forEach(function (k) { pinned[k] = true; });
+    for (var i = 0; i < arr.length; i++) if (arr[i] != null) pos[arr[i]] = i;
+    function movable(a) { return !pinned[a] && !locked[a]; }
+    apart.forEach(function (g) {
+      for (var x = 0; x < g.length; x++) for (var y = x + 1; y < g.length; y++) {
+        var a = pos[g[x]], b = pos[g[y]];
+        if (a == null || b == null || !seatNear(a, b, apartDist)) continue;
+        n++;
+        if (movable(a)) mv.push(a);
+        if (movable(b)) mv.push(b);
+      }
+    });
+    tog.forEach(function (g) {
+      for (var x = 0; x < g.length; x++) for (var y = x + 1; y < g.length; y++) {
+        var a = pos[g[x]], b = pos[g[y]];
+        if (a == null || b == null || seatNear(a, b, togDist)) continue;
+        n++;
+      }
+    });
+    return { n: n, mv: mv };
+  }
+  function apartShuffle(vals) {
+    if (!apart.length && !tog.length && !foc.length) return place(shuffle(vals));
+    var free = freeSeats();
+    for (var t = 0; t < 400; t++) {
+      var arr = new Array(total()).fill(null), locked = {}, pos = {}, ok = true;
+      Object.keys(pins).forEach(function (k) { arr[+k] = pins[k]; pos[pins[k]] = +k; });
+      /* 집중이 필요한 학생은 모서리 자리에 먼저 */
+      var corner = cornerSeats(), fpool = free.filter(function (sIdx) { return corner[sIdx]; });
+      shuffle(foc.filter(function (m) { return pos[m] == null; })).forEach(function (m) {
+        if (!ok) return;
+        var cand = fpool.filter(function (sIdx) { return arr[sIdx] == null; });
+        if (!cand.length) { ok = false; return; }
+        var pk = cand[rnd(cand.length)];
+        arr[pk] = m; pos[m] = pk; locked[pk] = true;
+      });
+      if (!ok) continue;
+      /* 붙여 앉힐 묶음부터 가까운 자리에 모아 놓기 */
+      shuffle(tog.slice()).forEach(function (g) {
+        if (!ok) return;
+        var placed = [], todo = [];
+        g.forEach(function (m) { if (pos[m] != null) placed.push(pos[m]); else todo.push(m); });
+        shuffle(todo).forEach(function (m, ti) {
+          if (!ok) return;
+          var cand = free.filter(function (sIdx) {
+            if (arr[sIdx] != null) return false;
+            return placed.every(function (p) { return seatNear(sIdx, p, togDist); });
+          });
+          if (!placed.length) {
+            var need = todo.length - ti - 1;
+            cand = cand.filter(function (sIdx) {
+              var c = 0;
+              for (var q = 0; q < free.length; q++) if (free[q] !== sIdx && arr[free[q]] == null && seatNear(sIdx, free[q], togDist)) c++;
+              return c >= need;
+            });
+          }
+          if (!cand.length) { ok = false; return; }
+          var pk = cand[rnd(cand.length)];
+          arr[pk] = m; pos[m] = pk; locked[pk] = true; placed.push(pk);
+        });
+      });
+      if (!ok) continue;
+      /* 나머지 학생은 섞어서 남은 자리에 */
+      var pool = shuffle(vals.filter(function (v) { return v == null || pos[v] == null; }));
+      var left = shuffle(free.filter(function (sIdx) { return arr[sIdx] == null; })), q2 = 0;
+      left.forEach(function (sIdx) { arr[sIdx] = q2 < pool.length ? pool[q2] : null; q2++; });
+      var r = checkApart(arr, locked);
+      var movFree = free.filter(function (sIdx) { return !locked[sIdx]; });
+      for (var k = 0; k < 80 && r.n > 0 && r.mv.length && movFree.length; k++) {
+        var a = r.mv[rnd(r.mv.length)], b = movFree[rnd(movFree.length)];
+        var tmp = arr[a]; arr[a] = arr[b]; arr[b] = tmp;
+        r = checkApart(arr, locked);
+      }
+      if (r.n === 0) return arr;
+    }
+    return null;
+  }
   function nextFree(from) {
     var p = pinnedNos();
     while (from <= count && (p[from] || gap[from])) from++;
@@ -558,7 +754,7 @@ td.pos, td.mate { color: var(--muted); }
     try {
       localStorage.setItem(KEY, JSON.stringify({
         cols: cols, rows: rows, count: count, namesText: namesText, mode: mode, title: sheetTitle, msg: sheetMsg, dFrom: dateFrom, dTo: dateTo,
-        gaps: Object.keys(gap).map(Number),
+        gaps: Object.keys(gap).map(Number), apart: apart, apartDist: apartDist, tog: tog, togDist: togDist, foc: foc,
         off: listTrue(excl), join: listTrue(join),
         pins: Object.keys(pins).map(function (k) { return [+k, pins[k]]; })
       }));
@@ -573,6 +769,11 @@ td.pos, td.mate { color: var(--muted); }
       var gl = Array.isArray(s.gaps) ? s.gaps : [];
       count = clamp(s.count, 1, cols * rows + gl.length, Math.min(30, cols * rows));
       gl.forEach(function (g) { g = +g; if (g >= 1 && g <= count) gap[g] = true; });
+      if (Array.isArray(s.apart)) apart = s.apart.filter(Array.isArray);
+      apartDist = s.apartDist === 2 ? 2 : 1;
+      if (Array.isArray(s.tog)) tog = s.tog.filter(Array.isArray);
+      togDist = s.togDist === 2 ? 2 : 1;
+      if (Array.isArray(s.foc)) foc = s.foc;
       namesText = typeof s.namesText === 'string' ? s.namesText : '';
       mode = s.mode === 'one' ? 'one' : 'all';
       if (typeof s.title === 'string') sheetTitle = s.title;
@@ -620,8 +821,71 @@ td.pos, td.mate { color: var(--muted); }
       w.appendChild(gb);
       nameFields.appendChild(w);
     }
+    renderApart();
   }
 
+  var RU = {
+    apart: { els: { list: $('apartList'), chips: $('apartChips'), add: $('apartAdd'), d1: $('ad1'), d2: $('ad2') },
+      list: function () { return apart; }, dist: function () { return apartDist; }, setDist: function (v) { apartDist = v; },
+      sel: function () { return apartSel; }, setSel: function (o) { apartSel = o; }, add: function (g) { apart.push(g); } },
+    tog: { els: { list: $('togList'), chips: $('togChips'), add: $('togAdd'), d1: $('td1'), d2: $('td2') },
+      list: function () { return tog; }, dist: function () { return togDist; }, setDist: function (v) { togDist = v; },
+      sel: function () { return togSel; }, setSel: function (o) { togSel = o; }, add: function (g) { tog.push(g); } }
+  };
+  function renderRule(ru, arrow) {
+    var e = ru.els, sel = ru.sel();
+    e.d1.setAttribute('aria-pressed', ru.dist() === 1);
+    e.d2.setAttribute('aria-pressed', ru.dist() === 2);
+    e.list.textContent = '';
+    ru.list().forEach(function (g, gi) {
+      var li = document.createElement('li');
+      var who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = g.map(function (no) { return nameOf(no) ? no + ' ' + nameOf(no) : no + '번'; }).join(arrow);
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'mini'; del.textContent = '삭제';
+      del.setAttribute('data-del', gi);
+      del.setAttribute('aria-label', (gi + 1) + '번째 묶음 삭제');
+      li.appendChild(who); li.appendChild(del);
+      e.list.appendChild(li);
+    });
+    e.chips.textContent = '';
+    Object.keys(sel).forEach(function (k) { if (+k > count || gap[k]) delete sel[k]; });
+    for (var no = 1; no <= count; no++) {
+      if (gap[no]) continue;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (sel[no] ? ' on' : '');
+      b.setAttribute('aria-pressed', !!sel[no]);
+      b.setAttribute('data-ap', no);
+      b.textContent = no + (nameOf(no) ? ' ' + nameOf(no) : '');
+      e.chips.appendChild(b);
+    }
+    var n = Object.keys(sel).length;
+    e.add.disabled = n < 2;
+    e.add.textContent = n < 2 ? '묶음 추가 (2명 이상 고르기)' : '묶음 추가 (' + n + '명)';
+  }
+  function renderFoc() {
+    var box = $('focChips');
+    box.textContent = '';
+    for (var no = 1; no <= count; no++) {
+      if (gap[no]) continue;
+      var on = foc.indexOf(no) >= 0;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (on ? ' on' : '');
+      b.setAttribute('aria-pressed', on);
+      b.setAttribute('data-fc', no);
+      b.textContent = no + (nameOf(no) ? ' ' + nameOf(no) : '');
+      box.appendChild(b);
+    }
+    $('focInfo').textContent = foc.length ? '선택한 학생: ' + foc.length + '명' : '선택한 학생이 없어요.';
+  }
+  function renderApart() {
+    renderFoc();
+    renderRule(RU.apart, '  ↔  ');
+    renderRule(RU.tog, '  +  ');
+  }
   function gapText() {
     return Object.keys(gap).map(Number).sort(function (a, b) { return a - b; }).join(', ');
   }
@@ -856,34 +1120,18 @@ td.pos, td.mate { color: var(--muted); }
 
   function renderRoster() {
     roster.textContent = '';
-    var showMate = groupCount() > 0;
-    thMate.hidden = !showMate;
-    var where = {};
-    for (var i = 0; i < seats.length; i++) if (seats[i] != null) where[seats[i]] = i;
-    var placed = !(mode === 'all' && !drawn);
     for (var no = 1; no <= count; no++) {
       var tr = document.createElement('tr');
       if (gap[no]) {
         var ga = document.createElement('td'); ga.textContent = no + '번';
         var gb2 = document.createElement('td'); gb2.textContent = '결번'; gb2.style.color = 'var(--muted)';
-        var gp = document.createElement('td'); gp.className = 'pos'; gp.textContent = '-';
-        tr.appendChild(ga); tr.appendChild(gb2); tr.appendChild(gp);
-        if (showMate) { var gm = document.createElement('td'); gm.className = 'mate'; gm.textContent = '-'; tr.appendChild(gm); }
+        tr.appendChild(ga); tr.appendChild(gb2);
         roster.appendChild(tr);
         continue;
       }
       var a = document.createElement('td'); a.textContent = no + '번';
       var b = document.createElement('td'); b.textContent = nameOf(no) || '-';
-      var p = document.createElement('td'); p.className = 'pos';
-      var at = placed ? where[no] : undefined;
-      var fixed = at != null && pins[at] === no;
-      p.textContent = at != null ? posOf(at) + (fixed ? ' (고정)' : '') : '-';
-      tr.appendChild(a); tr.appendChild(b); tr.appendChild(p);
-      if (showMate) {
-        var m = document.createElement('td'); m.className = 'mate';
-        m.textContent = at != null && mates(at).length ? mates(at).map(label).join(', ') : '-';
-        tr.appendChild(m);
-      }
+      tr.appendChild(a); tr.appendChild(b);
       roster.appendChild(tr);
     }
   }
@@ -950,7 +1198,16 @@ td.pos, td.mate { color: var(--muted); }
     var n = freeSeats().length;
     if (busy || availIdx().length < activeCount()) return;
     var vals = studentValues(n);
-    var final = place(shuffle(vals));
+    var final = apartShuffle(vals);
+    if (!final) {
+      announce.textContent = '';
+      var wb = document.createElement('div');
+      wb.className = 'sub';
+      wb.textContent = '조건에 맞는 자리를 찾지 못했어요. 오른쪽 아래 톱니바퀴(추가 설정)를 확인한 뒤 다시 뽑아 주세요.';
+      announce.appendChild(wb);
+      announce.hidden = false;
+      return;
+    }
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     announce.hidden = true;
     hit = -1;
@@ -977,8 +1234,49 @@ td.pos, td.mate { color: var(--muted); }
     var free = [];
     for (var i = 0; i < seats.length; i++) if (seats[i] == null && !excl[i]) free.push(i);
     if (!free.length) return;
-    var pick = free[rnd(free.length)];
-    var no = next;
+    var no = next, warnApart = false;
+    var cand = free;
+    if (apart.length || tog.length || foc.length) {
+      var corner = cornerSeats(), isFoc = foc.indexOf(no) >= 0, focLeft = 0;
+      var posNo = {};
+      for (var q = 0; q < seats.length; q++) if (seats[q] != null) posNo[seats[q]] = q;
+      foc.forEach(function (m) { if (m !== no && seats.indexOf(m) < 0) focLeft++; });
+      var seatOk = function (i, strict) {
+        if (isFoc && !corner[i]) return false;
+        if (!isFoc && strict && corner[i]) {
+          var fc = 0;
+          for (var w = 0; w < free.length; w++) if (free[w] !== i && corner[free[w]]) fc++;
+          if (fc < focLeft) return false;
+        }
+        for (var a = 0; a < apart.length; a++) {
+          if (apart[a].indexOf(no) < 0) continue;
+          for (var x = 0; x < apart[a].length; x++) {
+            var o = apart[a][x];
+            if (o !== no && posNo[o] != null && seatNear(i, posNo[o], apartDist)) return false;
+          }
+        }
+        for (var b = 0; b < tog.length; b++) {
+          if (tog[b].indexOf(no) < 0) continue;
+          var anyPlaced = false, unplaced = 0;
+          for (var y = 0; y < tog[b].length; y++) {
+            var m = tog[b][y];
+            if (m === no) continue;
+            if (posNo[m] != null) { anyPlaced = true; if (!seatNear(i, posNo[m], togDist)) return false; }
+            else unplaced++;
+          }
+          if (!anyPlaced && strict) {
+            var c = 0;
+            for (var z = 0; z < free.length; z++) if (free[z] !== i && seatNear(i, free[z], togDist)) c++;
+            if (c < unplaced) return false;
+          }
+        }
+        return true;
+      };
+      cand = free.filter(function (i) { return seatOk(i, true); });
+      if (!cand.length) cand = free.filter(function (i) { return seatOk(i, false); });
+      if (!cand.length) { cand = free; warnApart = true; }
+    }
+    var pick = cand[rnd(cand.length)];
     seats[pick] = no;
     shown = seats;
     hit = pick;
@@ -996,6 +1294,12 @@ td.pos, td.mate { color: var(--muted); }
         ? (size === 2 ? '짝꿍: ' : '같은 책상: ') + ms.map(label).join(', ')
         : '같은 책상에 아직 아무도 없어요';
       announce.appendChild(sub);
+    }
+    if (warnApart) {
+      var wn = document.createElement('div');
+      wn.className = 'sub';
+      wn.textContent = '조건에 맞는 빈자리가 없어서 설정을 지키지 못했어요. 오른쪽 아래 톱니바퀴(추가 설정)를 확인해 주세요.';
+      announce.appendChild(wn);
     }
     announce.hidden = false;
     next = nextFree(no + 1);
@@ -1021,8 +1325,8 @@ td.pos, td.mate { color: var(--muted); }
   }
 
   /* ---- 인쇄: A4 가로 한 장짜리 그림을 만들어 보여 주고 인쇄 ---- */
-  function drawSheet(showRoster) {
-    var PX = 8, W = 297 * PX, H = 210 * PX;
+  function drawSheet(showRoster, rosterOnly) {
+    var PX = 8, PW = rosterOnly ? 210 : 297, PH = rosterOnly ? 297 : 210, W = PW * PX, H = PH * PX, R0 = PW - 10;
     var cv = document.createElement('canvas');
     cv.width = W; cv.height = H;
     var g = cv.getContext('2d');
@@ -1065,11 +1369,37 @@ td.pos, td.mate { color: var(--muted); }
     else dateStr = d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
     if (dateFrom && !dateTo) dateStr = fmtD(dateFrom) + ' ~';
     if (dateTo && !dateFrom) dateStr = '~ ' + fmtD(dateTo);
-    var title = sheetTitle || '자리 배치표';
-    var ts = fit(title, 200, 9, 5, FD);
+    var title = rosterOnly ? '명렬표' : (sheetTitle || '자리 배치표');
+    var ts = fit(title, rosterOnly ? 130 : 200, 9, 5, FD);
     text(title, 10, 13, ts, FD, '#111', 'left');
-    text(dateStr, 287, 13, 4.2, FB, '#555', 'right');
-    line(10, 19, 287, 19, 0.4, '#333');
+    text(dateStr, R0, 13, 4.2, FB, '#555', 'right');
+    line(10, 19, R0, 19, 0.4, '#333');
+    if (rosterOnly) {
+      var nn = count, ncol = Math.max(1, Math.ceil(nn / 30)), per = Math.ceil(nn / ncol);
+      var hH = 9, rH = Math.min(11, (297 - 26 - 12 - hH) / per), cgap = 8;
+      var cW = Math.min(150, (190 - cgap * (ncol - 1)) / ncol), tot = cW * ncol + cgap * (ncol - 1);
+      var sx = 10 + (190 - tot) / 2, sy = 26, nW = Math.min(24, cW * 0.3);
+      for (var c = 0; c < ncol; c++) {
+        var cx = sx + c * (cW + cgap);
+        g.fillStyle = '#eef2f0'; g.fillRect(mm(cx), mm(sy), mm(cW), mm(hH));
+        text('번호', cx + nW / 2, sy + hH / 2, 4, FB, '#444', 'center');
+        text('이름', cx + nW + (cW - nW) / 2, sy + hH / 2, 4, FB, '#444', 'center');
+        line(cx, sy, cx + cW, sy, 0.3, '#333'); line(cx, sy + hH, cx + cW, sy + hH, 0.3, '#333');
+        for (var r = 0; r < per; r++) {
+          var no = c * per + r + 1;
+          if (no > nn) break;
+          var ry = sy + hH + r * rH;
+          line(cx, ry + rH, cx + cW, ry + rH, 0.2, '#999');
+          var isGap = !!gap[no], nm = isGap ? '결번' : (nameOf(no) || '');
+          text(String(no), cx + nW / 2, ry + rH / 2, Math.min(4.6, rH * 0.5), FB, isGap ? '#999' : '#111', 'center');
+          if (nm) text(nm, cx + nW + (cW - nW) / 2, ry + rH / 2, fit(nm, cW - nW - 4, Math.min(5.4, rH * 0.58), 3, FB), FB, isGap ? '#999' : '#111', 'center');
+        }
+        var lastR = Math.min(per, nn - c * per);
+        line(cx, sy, cx, sy + hH + lastR * rH, 0.3, '#333'); line(cx + nW, sy, cx + nW, sy + hH + lastR * rH, 0.2, '#999'); line(cx + cW, sy, cx + cW, sy + hH + lastR * rH, 0.3, '#333');
+        line(cx, sy + hH + lastR * rH, cx + cW, sy + hH + lastR * rH, 0.3, '#333');
+      }
+      return cv;
+    }
 
     var x0 = 10, top = 25, bottom = 200, cw = showRoster ? 224 : 277;
     /* 교실을 뒤에서 본 모습: 칠판과 교탁이 아래쪽, 앞줄이 맨 아래 */
@@ -1217,17 +1547,22 @@ td.pos, td.mate { color: var(--muted); }
       : Promise.resolve();
     ready.then(function () {
       if (token !== sheetToken) return;
-      var url = drawSheet(pvRoster.checked).toDataURL('image/png');
+      var url = drawSheet(pvRoster.checked, rosterMode).toDataURL('image/png');
       pvImg.src = url;
       if (pvSave) pvSave.href = url;
     });
   }
 
-  function openPrint() {
+  var rosterMode = false, pageStyle = document.createElement('style');
+  document.head.appendChild(pageStyle);
+  function openPrint(only) {
+    rosterMode = only === true;
+    pageStyle.textContent = rosterMode ? '@media print { @page { size: A4 portrait; margin: 0; } html, body.pv-open { width: 210mm !important; height: 296mm !important; } body.pv-open .printview, body.pv-open .pv-inner { width: 210mm !important; height: 296mm !important; } body.pv-open .printview img { width: 210mm !important; height: 296mm !important; max-height: 296mm !important; } }' : '';
+    pv.classList.toggle('roster-only', rosterMode);
     pvTitle.value = sheetTitle;
     pvMsg.value = sheetMsg;
     pvFrom.value = dateFrom; pvTo.value = dateTo;
-    var w = printWarning();
+    var w = rosterMode ? '' : printWarning();
     pvWarn.textContent = w;
     pvWarn.hidden = !w;
     pv.hidden = false;
@@ -1236,11 +1571,13 @@ td.pos, td.mate { color: var(--muted); }
     refreshSheet();
   }
   function closePrint() {
+    pageStyle.textContent = '';
     pv.hidden = true;
     document.body.classList.remove('pv-open');
   }
 
-  printBtn.addEventListener('click', openPrint);
+  printBtn.addEventListener('click', function () { openPrint(false); });
+  $('printRoster').addEventListener('click', function () { openPrint(true); });
   pvClose.addEventListener('click', closePrint);
   pvPrint.addEventListener('click', function () { try { window.print(); } catch (e) {} });
   pvRoster.addEventListener('change', refreshSheet);
@@ -1265,12 +1602,18 @@ td.pos, td.mate { color: var(--muted); }
     titleTimer = setTimeout(refreshSheet, 250);
   });
   window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !pv.hidden) closePrint(); });
+  var extraView = $('extraView');
+  $('gearBtn').addEventListener('click', function () { extraView.hidden = false; });
+  $('extraClose').addEventListener('click', function () { extraView.hidden = true; });
+  extraView.addEventListener('click', function (e) { if (e.target === extraView) extraView.hidden = true; });
+  window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !extraView.hidden) extraView.hidden = true; });
 
   go.addEventListener('click', function () { mode === 'all' ? drawAll() : drawNext(); });
   resetBtn.addEventListener('click', reset);
   mAll.addEventListener('click', function () { setMode('all'); });
   mOne.addEventListener('click', function () { setMode('one'); });
   [1, 2, 3, 4].forEach(function (g) { dkBtns[g].addEventListener('click', function () { setGroups(g); }); });
+  $('settings').addEventListener('toggle', function () { if (!this.open && editMode) setEdit(editMode); });
   edEx.addEventListener('click', function () { setEdit('exclude'); });
   edMv.addEventListener('click', function () { setEdit('move'); });
   edJn.addEventListener('click', function () { setEdit('join'); });
@@ -1337,6 +1680,7 @@ td.pos, td.mate { color: var(--muted); }
     arr[i] = t.value;
     setNames(arr);
     inNames.value = namesText;
+    renderApart();
     render();
   });
   nameFields.addEventListener('keydown', function (e) {
@@ -1357,6 +1701,38 @@ td.pos, td.mate { color: var(--muted); }
   });
   inNames.addEventListener('input', function () {
     namesText = inNames.value; save(); buildNameFields(); render();
+  });
+
+  $('focChips').addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target.closest('[data-fc]') : null;
+    if (!t || busy) return;
+    var no = parseInt(t.getAttribute('data-fc'), 10), k = foc.indexOf(no);
+    if (k >= 0) foc.splice(k, 1); else foc.push(no);
+    save(); renderApart(); reset();
+  });
+  Object.keys(RU).forEach(function (key) {
+    var ru = RU[key], e = ru.els;
+    e.chips.addEventListener('click', function (ev) {
+      var t = ev.target.closest ? ev.target.closest('[data-ap]') : null;
+      if (!t) return;
+      var no = parseInt(t.getAttribute('data-ap'), 10), sel = ru.sel();
+      if (sel[no]) delete sel[no]; else sel[no] = true;
+      renderApart();
+    });
+    e.add.addEventListener('click', function () {
+      var g = Object.keys(ru.sel()).map(Number).sort(function (a, b) { return a - b; });
+      if (g.length < 2 || busy) return;
+      ru.add(g); ru.setSel({});
+      cleanApart(); save(); renderApart(); reset();
+    });
+    e.list.addEventListener('click', function (ev) {
+      var t = ev.target.closest ? ev.target.closest('[data-del]') : null;
+      if (!t || busy) return;
+      ru.list().splice(parseInt(t.getAttribute('data-del'), 10), 1);
+      save(); renderApart(); reset();
+    });
+    e.d1.addEventListener('click', function () { if (busy) return; ru.setDist(1); save(); renderApart(); reset(); });
+    e.d2.addEventListener('click', function () { if (busy) return; ru.setDist(2); save(); renderApart(); reset(); });
   });
 
   load();
