@@ -106,6 +106,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus
 .slot { position: relative; min-width: 0; }
 .grid.moving .desk { cursor: pointer; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 .desk.dragging { z-index: 10; cursor: grabbing; box-shadow: 0 3px 0 var(--desk-edge), 0 12px 20px rgba(0, 0, 0, 0.28); }
+.seat.dragging { position: relative; z-index: 20; cursor: grabbing; filter: drop-shadow(0 8px 10px rgba(0,0,0,.35)); }
+.seat.drop { outline: 3px dashed var(--focus); outline-offset: 2px; }
 .desk.drop { outline: 3px dashed var(--focus); outline-offset: 3px; }
 
 .desk {
@@ -129,6 +131,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus
   border: 1.5px dashed var(--line);
   box-shadow: none;
 }
+.seatgap { min-width: 0; border-radius: 9px; border: 1.5px dashed var(--line); display: flex; }
+.seatgap .seat { flex: 1; }
 .seat {
   position: relative;
   display: flex; align-items: center; justify-content: center;
@@ -410,9 +414,9 @@ td.pos, td.mate { color: var(--muted); }
       <div class="group">
         <span class="lab">모둠 인원</span>
         <div class="seg btns" style="--n:3" role="group" aria-label="모둠 인원">
-          <button type="button" id="pd4" aria-pressed="true">4명 모둠</button>
-          <button type="button" id="pd5" aria-pressed="false">5명 모둠</button>
-          <button type="button" id="pd6" aria-pressed="false">6명 모둠</button>
+          <button type="button" id="pd4" aria-pressed="true">4명씩 모둠</button>
+          <button type="button" id="pd5" aria-pressed="false">5명씩 모둠</button>
+          <button type="button" id="pd6" aria-pressed="false">6명씩 모둠</button>
         </div>
       </div>
       <div class="group">
@@ -571,10 +575,15 @@ td.pos, td.mate { color: var(--muted); }
   var apart = [], apartDist = 1, apartSel = {};
   var tog = [], togDist = 1, togSel = {};
   var foc = [];
-  var pairRows = false, podPrev = null, podPrevExcl = null, podBase = null, podSize = 4, podDir = 'h';
+  var pairRows = false, podOver = false, podStash = null, podBase = null, podSize = 4, podDir = 'h';
   function podG() {
-    var v = podDir === 'v';
-    return { H: (v && podSize >= 5) ? 3 : 2, w: podSize === 4 ? 2 : (v ? 2 : 3), five: podSize === 5 };
+    var v = podDir === 'v', es = podSize + (podOver ? 1 : 0), sh;
+    if (es <= 4) sh = { H: 2, w: 2, ex: 0 };
+    else if (es === 5) sh = v ? { H: 3, w: 2, ex: 1 } : { H: 2, w: 3, ex: 1 };
+    else if (es === 6) sh = v ? { H: 3, w: 2, ex: 0 } : { H: 2, w: 3, ex: 0 };
+    else sh = v ? { H: 4, w: 2, ex: 1 } : { H: 2, w: 4, ex: 1 };
+    sh.five = sh.ex > 0;
+    return sh;
   }
   var excl = [], join = [], pins = {};
   var editMode = '', pinSeat = -1, drag = null;
@@ -604,11 +613,12 @@ td.pos, td.mate { color: var(--muted); }
     for (i = 0; i < n; i++) if (i % cols === cols - 1) join[i] = false;
     if (pairRows) {
       var G0 = podG();
-      for (var pr = 0; pr + G0.H <= rows; pr += G0.H) for (var pc2 = 0; pc2 < cols; pc2++) {
-        for (var pk = 1; pk < G0.H; pk++) join[(pr + pk) * cols + pc2] = join[pr * cols + pc2];
-        if (G0.five) {
+      for (var pr = 0; pr < rows; pr += G0.H) for (var pc2 = 0; pc2 < cols; pc2++) {
+        var Hb0 = Math.min(G0.H, rows - pr);
+        for (var pk = 1; pk < Hb0; pk++) join[(pr + pk) * cols + pc2] = join[pr * cols + pc2];
+        if (G0.five && Hb0 === G0.H) {
           var li = (pr + G0.H - 1) * cols + pc2;
-          if (G0.H === 2 ? pc2 % 3 === 1 : pc2 % 2 === 0) join[li] = false;
+          if (pc2 % G0.w === G0.w - G0.ex - 1) join[li] = false;
         }
       }
     }
@@ -624,6 +634,55 @@ td.pos, td.mate { color: var(--muted); }
   function availIdx() {
     var out = [];
     for (var i = 0; i < total(); i++) if (!excl[i]) out.push(i);
+    return out;
+  }
+  var vacSet = null, autoEx = {};
+  /* 모둠이 완성되면 빈자리는 모두 제외 표시로 바꿔요 (다시 뽑으면 원래대로) */
+  function clearAutoEx() { Object.keys(autoEx).forEach(function (k) { excl[+k] = false; }); autoEx = {}; }
+  function markVacant() {
+    if (!pairRows) return;
+    var placed = 0, i;
+    for (i = 0; i < seats.length; i++) if (!excl[i] && seats[i] != null) placed++;
+    if (placed < activeCount()) return;
+    for (i = 0; i < seats.length; i++) if (!excl[i] && seats[i] == null && pins[i] == null) { excl[i] = true; autoEx[i] = true; }
+    save();
+  }
+  function drawSeats() { var f = freeSeats(); return vacSet ? f.filter(function (i) { return !vacSet[i]; }) : f; }
+  /* 모둠 모드: 빈자리를 한 모둠에 몰아서, 남는 학생끼리 한 모둠이 되게 */
+  function podVacant(v) {
+    var out = {};
+    if (!pairRows || v <= 0) return out;
+    var G = podG(), pods = [], horiz = podDir === 'h';
+    for (var r0 = 0; r0 < rows; r0 += G.H) {
+      var Hb = Math.min(G.H, rows - r0);
+      for (var c = 0; c < cols; ) {
+        var n = 1;
+        while (c + n < cols && join[r0 * cols + c + n - 1]) n++;
+        var seatsIn = [];
+        for (var q = 0; q < Hb; q++) for (var k = 0; k < n; k++) {
+          var i = (r0 + q) * cols + c + k;
+          if (!excl[i] && pins[i] == null) seatsIn.push(i);
+        }
+        if (seatsIn.length) pods.push({ s: seatsIn, r: r0, c: c });
+        c += n;
+      }
+    }
+    /* 가로 모둠: 왼쪽 모둠부터 채우고 빈자리는 오른쪽으로 / 세로 모둠: 칠판에서 먼 쪽(마지막 줄)으로 몰아요 */
+    pods.sort(function (x, y) { return horiz ? (x.c - y.c || x.r - y.r) : (x.r - y.r || x.c - y.c); });
+    var far = function (x, y) {
+      if (horiz) { var cx = x % cols, cy = y % cols; return (cy - cx) || (Math.floor(y / cols) - Math.floor(x / cols)); }
+      return y - x;
+    };
+    if (podOver) {
+      var extra = pods.length - v;
+      pods.forEach(function (pd, pk) {
+        if (pk >= extra && pd.s.length) out[pd.s.slice().sort(far)[0]] = true;
+      });
+      return out;
+    }
+    for (var pi = pods.length - 1; pi >= 0 && v > 0; pi--) {
+      pods[pi].s.slice().sort(far).forEach(function (i) { if (v > 0) { out[i] = true; v--; } });
+    }
     return out;
   }
   function freeSeats() { return availIdx().filter(function (i) { return pins[i] == null; }); }
@@ -707,7 +766,7 @@ td.pos, td.mate { color: var(--muted); }
   }
   function apartShuffle(vals) {
     if (!apart.length && !tog.length && !foc.length) return place(shuffle(vals));
-    var free = freeSeats();
+    var free = drawSeats();
     for (var t = 0; t < 400; t++) {
       var arr = new Array(total()).fill(null), locked = {}, pos = {}, ok = true;
       Object.keys(pins).forEach(function (k) { arr[+k] = pins[k]; pos[pins[k]] = +k; });
@@ -772,11 +831,12 @@ td.pos, td.mate { color: var(--muted); }
     while (e % cols < cols - 1 && join[e]) e++;
     return [s, e];
   }
-  function hasPod(i) { var H = podG().H, r0 = Math.floor(i / cols); r0 -= r0 % H; return pairRows && r0 + H <= rows; }
-  function deskSize(i) { var r = deskRange(i); return (r[1] - r[0] + 1) * (hasPod(i) ? podG().H : 1); }
+  function hasPod(i) { return pairRows; }
+  function podH(r) { var H = podG().H; return Math.min(H, rows - (r - r % H)); }
+  function deskSize(i) { var r = deskRange(i); return (r[1] - r[0] + 1) * (hasPod(i) ? podH(Math.floor(i / cols)) : 1); }
   function mates(i) {
     var row = Math.floor(i / cols), rs = [row], r;
-    if (hasPod(i)) { var H = podG().H, r0 = row - row % H; rs = []; for (var q = 0; q < H; q++) rs.push(r0 + q); r = deskRange(r0 * cols + (i % cols)); }
+    if (hasPod(i)) { var H = podH(row), r0 = row - row % podG().H; rs = []; for (var q = 0; q < H; q++) rs.push(r0 + q); r = deskRange(r0 * cols + (i % cols)); }
     else r = deskRange(i);
     var out = [];
     rs.forEach(function (rw) {
@@ -815,11 +875,19 @@ td.pos, td.mate { color: var(--muted); }
   function place(vals) {
     var arr = new Array(total()).fill(null);
     Object.keys(pins).forEach(function (k) { arr[+k] = pins[k]; });
-    var idx = freeSeats();
-    for (var q = 0; q < idx.length; q++) arr[idx[q]] = vals[q];
+    var idx = drawSeats();
+    for (var q = 0; q < idx.length; q++) arr[idx[q]] = vals[q] == null ? null : vals[q];
     return arr;
   }
-  function ordered() { return place(studentValues(freeSeats().length)); }
+  function ordered() {
+    var nn = freeSeats().length, vals = studentValues(nn);
+    vacSet = null;
+    if (pairRows) {
+      vacSet = podVacant(nn - vals.filter(function (v) { return v != null; }).length);
+      vals = vals.filter(function (v) { return v != null; });
+    }
+    return place(vals);
+  }
   function clamp(v, lo, hi, fallback) {
     v = parseInt(v, 10);
     if (isNaN(v)) return fallback;
@@ -840,8 +908,8 @@ td.pos, td.mate { color: var(--muted); }
     try {
       localStorage.setItem(KEY, JSON.stringify({
         cols: cols, rows: rows, count: count, namesText: namesText, mode: mode, title: sheetTitle, msg: sheetMsg, dFrom: dateFrom, dTo: dateTo,
-        gaps: Object.keys(gap).map(Number), apart: apart, apartDist: apartDist, tog: tog, togDist: togDist, foc: foc, pod: pairRows, podSize: podSize, podDir: podDir, podPrev: pairRows && podPrev ? listTrue(podPrev) : null, podPrevOff: pairRows && podPrevExcl ? listTrue(podPrevExcl) : null, podBase: podBase ? listTrue(podBase) : null,
-        off: listTrue(excl), join: listTrue(join),
+        gaps: Object.keys(gap).map(Number), apart: apart, apartDist: apartDist, tog: tog, togDist: togDist, foc: foc, pod: pairRows, podOver: podOver, podSize: podSize, podDir: podDir, podStash: pairRows && podStash ? { cols: podStash.cols, rows: podStash.rows, off: listTrue(podStash.excl), join: listTrue(podStash.join), pins: Object.keys(podStash.pins).map(function (k) { return [+k, podStash.pins[k]]; }) } : null,
+        off: listTrue(excl), auto: Object.keys(autoEx).map(Number), join: listTrue(join),
         pins: Object.keys(pins).map(function (k) { return [+k, pins[k]]; })
       }));
     } catch (e) {}
@@ -861,11 +929,19 @@ td.pos, td.mate { color: var(--muted); }
       togDist = s.togDist === 2 ? 2 : 1;
       if (Array.isArray(s.foc)) foc = s.foc;
       pairRows = s.pod === true;
+      podOver = pairRows && s.podOver === true;
       podSize = (s.podSize === 5 || s.podSize === 6) ? s.podSize : 4;
       podDir = s.podDir === 'v' ? 'v' : 'h';
-      if (pairRows && Array.isArray(s.podPrevOff)) { podPrevExcl = new Array(total()).fill(false); s.podPrevOff.forEach(function (i) { if (i >= 0 && i < total()) podPrevExcl[i] = true; }); }
-      if (Array.isArray(s.podBase)) { podBase = new Array(total()).fill(false); s.podBase.forEach(function (i) { if (i >= 0 && i < total()) podBase[i] = true; }); }
-      if (pairRows && Array.isArray(s.podPrev)) { podPrev = new Array(total()).fill(false); s.podPrev.forEach(function (i) { if (i >= 0 && i < total()) podPrev[i] = true; }); }
+      if (pairRows) {
+        var ps = s.podStash;
+        if (ps && ps.cols >= 1 && ps.rows >= 1 && Array.isArray(ps.off) && Array.isArray(ps.join)) {
+          var pt = ps.cols * ps.rows;
+          podStash = { cols: clamp(ps.cols, 1, 10, 5), rows: clamp(ps.rows, 1, 12, 6), excl: new Array(pt).fill(false), join: new Array(pt).fill(false), pins: {} };
+          ps.off.forEach(function (i) { if (i >= 0 && i < pt) podStash.excl[i] = true; });
+          ps.join.forEach(function (i) { if (i >= 0 && i < pt) podStash.join[i] = true; });
+          (ps.pins || []).forEach(function (q) { if (Array.isArray(q) && q[0] >= 0 && q[0] < pt) podStash.pins[q[0]] = q[1]; });
+        } else pairRows = false;
+      }
       namesText = typeof s.namesText === 'string' ? s.namesText : '';
       mode = s.mode === 'one' ? 'one' : 'all';
       if (typeof s.title === 'string') sheetTitle = s.title;
@@ -874,6 +950,7 @@ td.pos, td.mate { color: var(--muted); }
       if (typeof s.dTo === 'string') dateTo = s.dTo;
       ensureArrays();
       if (Array.isArray(s.off)) s.off.forEach(function (i) { if (i >= 0 && i < total()) excl[i] = true; });
+      if (Array.isArray(s.auto)) s.auto.forEach(function (i) { if (i >= 0 && i < total() && excl[i]) autoEx[i] = true; });
       if (Array.isArray(s.join)) s.join.forEach(function (i) { if (i >= 0 && i < total()) join[i] = true; });
       else if (s.desk === 2 || s.desk === 3) join = groupPattern(s.desk);
       if (Array.isArray(s.pins)) s.pins.forEach(function (p) {
@@ -1015,7 +1092,9 @@ td.pos, td.mate { color: var(--muted); }
     gap = ng;
     Object.keys(pins).forEach(function (k) { if (gap[pins[k]]) delete pins[k]; });
     inGaps.value = gapText();
-    save(); buildNameFields(); reset();
+    buildNameFields();
+    if (pairRows) { applyPodLayout(); return; }
+    save(); reset();
   }
   function toggleGap(n) {
     if (busy) return;
@@ -1055,12 +1134,28 @@ td.pos, td.mate { color: var(--muted); }
     if (editMode !== '') return;
     if (Date.now() - lastDragEnd < 400) return;
     var allOff = idxs.every(function (i) { return excl[i]; });
-    idxs.forEach(function (i) { excl[i] = !allOff; });
+    idxs.forEach(function (i) { excl[i] = !allOff; delete autoEx[i]; });
     syncPodBase();
     save();
-    reset();
+    ensureArrays();
+    var anySeat = seats.some(function (x) { return x != null; });
+    /* 이미 뽑은 뒤에는 번호순으로 되돌리지 않고, 제외된 책상의 학생만 빈자리로 옮겨요 */
+    if (mode === 'all' ? drawn : anySeat) fitSeats(); else reset();
   }
 
+  function swapSeats(ia, ib) {
+    if (excl[ib]) { excl[ib] = false; delete autoEx[ib]; }
+    var t = seats[ia]; seats[ia] = seats[ib]; seats[ib] = t;
+    var pa = pins[ia], pb = pins[ib];
+    delete pins[ia]; delete pins[ib];
+    if (pa != null) pins[ib] = pa;
+    if (pb != null) pins[ia] = pb;
+    if (hit === ia) hit = ib; else if (hit === ib) hit = ia;
+    shown = seats;
+    markVacant();
+    save();
+    render();
+  }
   function swapDesks(a, b) {
     var ar = +a.getAttribute('data-r'), as = +a.getAttribute('data-s');
     var br = +b.getAttribute('data-r'), bs = +b.getAttribute('data-s');
@@ -1069,7 +1164,6 @@ td.pos, td.mate { color: var(--muted); }
       var ia = ar * cols + as + k, ib = br * cols + bs + k;
       var t = seats[ia]; seats[ia] = seats[ib]; seats[ib] = t;
       var e = excl[ia]; excl[ia] = excl[ib]; excl[ib] = e;
-      if (podBase) { var pe = podBase[ia]; podBase[ia] = podBase[ib]; podBase[ib] = pe; }
       var pa = pins[ia], pb = pins[ib];
       delete pins[ia]; delete pins[ib];
       if (pa != null) pins[ib] = pa;
@@ -1100,38 +1194,49 @@ td.pos, td.mate { color: var(--muted); }
     if (!G.five) return out;
     for (var pr = 0; pr + G.H <= rows; pr += G.H) {
       var last = pr + G.H - 1;
-      if (G.H === 2) { for (var pc = 0; pc + 2 < cols; pc += 3) out.push(last * cols + pc + 2); }
-      else { for (var pc3 = 0; pc3 + 1 < cols; pc3 += 2) out.push(last * cols + pc3 + 1); }
+      for (var pc = 0; pc + G.w <= cols; pc += G.w) for (var e = 0; e < G.ex; e++) out.push(last * cols + pc + G.w - 1 - e);
     }
     return out;
   }
-  function syncPodBase() {
-    if (!pairRows) return;
-    podBase = excl.slice();
-    fiveSeats().forEach(function (k) { podBase[k] = false; });
-  }
+  function syncPodBase() {}
   function applyPodLayout() {
-    if (!podBase || podBase.length !== total()) podBase = excl.slice();
-    excl = podBase.slice();
-    join = groupPattern(podG().w);
+    var N = activeCount(), rem = N % podSize, P0 = Math.floor(N / podSize);
+    /* 정원만큼 모둠을 먼저 만들고, 남은 학생은 다른 모둠에 한 명씩 더해요 (모둠 수보다 많이 남으면 작은 모둠을 하나 더) */
+    podOver = rem >= 1 && P0 >= rem;
+    var G = podG(), P = podOver ? P0 : Math.max(1, Math.ceil(N / podSize));
+    var hint = podStash ? podStash.cols : cols;
+    var pc = Math.max(1, Math.min(Math.round(hint / G.w), P));
+    while (pc * G.w + G.w <= 10 && Math.ceil(P / pc) * G.H > 12) pc++;
+    while (pc > 1 && pc * G.w > 10) pc--;
+    var pr = Math.max(1, Math.ceil(P / pc));
+    cols = pc * G.w; rows = pr * G.H;
+    excl = new Array(total()).fill(false);
+    join = groupPattern(G.w);
+    pins = {}; pinSeat = -1; autoEx = {};
+    for (var p = P; p < pc * pr; p++) {
+      var pr0 = Math.floor(p / pc) * G.H, pc0 = (p % pc) * G.w;
+      for (var q = 0; q < G.H; q++) for (var k = 0; k < G.w; k++) excl[(pr0 + q) * cols + pc0 + k] = true;
+    }
     fiveSeats().forEach(function (k) { excl[k] = true; });
-    ensureArrays(); save(); fitSeats();
+    inCols.value = cols; inRows.value = rows;
+    ensureArrays(); save(); reset();
   }
   function enterPod() {
     if (busy || pairRows) return;
-    podPrev = join.slice(); podPrevExcl = excl.slice();
-    if (!podBase || podBase.length !== total()) podBase = excl.slice();
-    pairRows = true;
+    var pn = {};
+    Object.keys(pins).forEach(function (k) { pn[k] = pins[k]; });
+    podStash = { cols: cols, rows: rows, join: join.slice(), excl: excl.slice(), pins: pn };
+    pairRows = true; autoEx = {};
     if (editMode === 'join') editMode = '';
     applyPodLayout();
   }
   function leavePod() {
     if (busy || !pairRows) return;
     pairRows = false;
-    if (podPrev) join = podPrev.slice();
-    if (podPrevExcl) excl = podPrevExcl.slice();
-    podPrev = null; podPrevExcl = null;
-    ensureArrays(); save(); fitSeats();
+    if (podStash) { cols = podStash.cols; rows = podStash.rows; join = podStash.join.slice(); excl = podStash.excl.slice(); pins = podStash.pins; }
+    podStash = null; pinSeat = -1; podOver = false; autoEx = {};
+    inCols.value = cols; inRows.value = rows;
+    ensureArrays(); save(); reset();
   }
   function setPodSize(g) { if (busy) return; podSize = g; if (pairRows) applyPodLayout(); else { save(); renderControls(); } }
   function setPodDir(d) { if (busy) return; podDir = d; if (pairRows) applyPodLayout(); else { save(); renderControls(); } }
@@ -1143,12 +1248,13 @@ td.pos, td.mate { color: var(--muted); }
     }
     if (mode === 'all' && !drawn) { reset(); return; }
     if (!moved.length) { render(); return; }
-    for (i = 0; i < seats.length; i++) if (!excl[i] && seats[i] == null && pins[i] == null) empt.push(i);
+    for (i = 0; i < seats.length; i++) if ((!excl[i] || autoEx[i]) && seats[i] == null && pins[i] == null) empt.push(i);
     /* 자리가 모자라면 그대로 두어요. 모둠을 풀면 같은 자리로 돌아와요 */
     if (empt.length < moved.length) { render(); return; }
     shuffle(empt);
     var q = 0;
-    for (i = 0; i < seats.length; i++) if (excl[i] && seats[i] != null) { var who = seats[i]; seats[i] = null; seats[empt[q]] = who; q++; }
+    for (i = 0; i < seats.length; i++) if (excl[i] && seats[i] != null) { var who = seats[i]; seats[i] = null; seats[empt[q]] = who; excl[empt[q]] = false; delete autoEx[empt[q]]; q++; }
+    markVacant();
     shown = seats; hit = -1;
     render();
   }
@@ -1179,7 +1285,7 @@ td.pos, td.mate { color: var(--muted); }
     grid.textContent = '';
     var curPod = null;
     for (var r = 0; r < rows; r++) {
-      var PG = podG(), podRow = pairRows && (r - r % PG.H) + PG.H <= rows;
+      var PG = podG(), podRow = pairRows, PH = podH(r);
       var rowEl;
       if (podRow && r % PG.H !== 0) rowEl = curPod;
       else {
@@ -1198,22 +1304,46 @@ td.pos, td.mate { color: var(--muted); }
         slot.style.gridColumn = (c + 1) + ' / span ' + n;
         if (podRow) {
           slot.style.gridRow = (r % PG.H) + 1;
-          if (r % PG.H === 0) {
+          var podAllOff = true;
+          for (var fq = 0; fq < PH; fq++) for (var fk = 0; fk < n; fk++) if (!excl[(r + fq) * cols + c + fk]) podAllOff = false;
+          if (r % PG.H === 0 && !podAllOff) {
             var fr = document.createElement('div');
             fr.className = 'podframe';
             fr.style.gridColumn = (c + 1) + ' / span ' + n;
-            fr.style.gridRow = '1 / span ' + PG.H;
+            fr.style.gridRow = '1 / span ' + PH;
             rowEl.appendChild(fr);
           }
         }
-        var dk = document.createElement('button');
-        dk.type = 'button';
-        dk.style.setProperty('--k', n);
+        var segs = [{ k0: 0, len: n, gap: false }];
+        if (pairRows && n >= 2) {
+          var cats = [], hasO = false, hasV = false;
+          for (var ck = 0; ck < n; ck++) {
+            var ci = base + ck, cat = excl[ci] ? 'x' : (shown[ci] == null ? 'v' : 'o');
+            cats.push(cat);
+            if (cat === 'o') hasO = true; else hasV = true;
+          }
+          if (hasO && hasV) {
+            segs = [];
+            for (var ck2 = 0; ck2 < n; ) {
+              var e2 = ck2 + 1;
+              while (e2 < n && cats[e2] === cats[ck2]) e2++;
+              segs.push({ k0: ck2, len: e2 - ck2, gap: cats[ck2] === 'v' });
+              ck2 = e2;
+            }
+            slot.style.display = 'grid';
+            slot.style.gridTemplateColumns = 'repeat(' + n + ', minmax(0, 1fr))';
+          }
+        }
+        segs.forEach(function (sg) {
+        var dk = document.createElement(sg.gap ? 'div' : 'button');
+        if (!sg.gap) dk.type = 'button';
+        dk.style.setProperty('--k', sg.len);
+        if (segs.length > 1) dk.style.gridColumn = (sg.k0 + 1) + ' / span ' + sg.len;
         dk.setAttribute('data-r', r);
-        dk.setAttribute('data-s', c);
-        dk.setAttribute('data-n', n);
+        dk.setAttribute('data-s', c + sg.k0);
+        dk.setAttribute('data-n', sg.len);
         var allOff = true, hitHere = false, idxs = [];
-        for (var k = 0; k < n; k++) {
+        for (var k = sg.k0; k < sg.k0 + sg.len; k++) {
           var i = base + k, no = shown[i];
           idxs.push(i);
           var st = document.createElement('span');
@@ -1254,14 +1384,16 @@ td.pos, td.mate { color: var(--muted); }
           }
           dk.appendChild(st);
         }
+        if (sg.gap) { dk.className = 'seatgap'; slot.appendChild(dk); return; }
         dk.className = 'desk' + (allOff ? ' off' : '') + (hitHere ? ' hit' : '');
         dk.setAttribute('aria-pressed', allOff);
-        dk.setAttribute('aria-label', (r + 1) + '줄 ' + (c + 1) + '번째 책상' + (n >= 2 ? '(' + n + '명)' : '') +
+        dk.setAttribute('aria-label', (r + 1) + '줄 ' + (c + sg.k0 + 1) + '번째 책상' + (sg.len >= 2 ? '(' + sg.len + '명)' : '') +
           (editMode === 'join' ? '' :
             editMode === 'pin' ? ', 자리를 눌러 학생 고정' :
             (allOff ? ', 제외됨. 누르면 다시 사용' : ', 누르면 제외, 끌어서 같은 크기의 책상과 바꾸기')));
         dk.addEventListener('click', clickDesk.bind(null, idxs));
         slot.appendChild(dk);
+        });
         if (editMode === 'join') {
           for (var q = 1; q < n; q++) {
             var sp = makeJoiner('split', '−', (r + 1) + '줄 ' + (c + q) + '번째와 ' + (c + q + 1) + '번째 사이 떼기', splitAt.bind(null, base + q - 1));
@@ -1342,6 +1474,7 @@ td.pos, td.mate { color: var(--muted); }
       dkBtns[g].setAttribute('aria-pressed', pat.every(function (v, i) { return v === join[i]; }));
     }
     var pdOn = pairRows;
+    inCols.disabled = pairRows; inRows.disabled = pairRows;
     $('pd4').setAttribute('aria-pressed', podSize === 4);
     $('pd5').setAttribute('aria-pressed', podSize === 5);
     $('pd6').setAttribute('aria-pressed', podSize === 6);
@@ -1385,16 +1518,23 @@ td.pos, td.mate { color: var(--muted); }
   }
 
   function reset() {
+    clearAutoEx();
     ensureArrays();
     drawn = false; hit = -1; busy = false;
     announce.hidden = true;
     if (mode === 'all') {
       seats = ordered();
+      markVacant();
     } else {
       seats = new Array(total()).fill(null);
       Object.keys(pins).forEach(function (k) { seats[+k] = pins[k]; });
     }
     next = nextFree(1);
+    vacSet = null;
+    if (pairRows && mode === 'one') {
+      var nn = freeSeats().length, realN = studentValues(nn).filter(function (v) { return v != null; }).length;
+      vacSet = podVacant(nn - realN);
+    }
     shown = seats;
     render();
   }
@@ -1424,9 +1564,17 @@ td.pos, td.mate { color: var(--muted); }
   function sfxDone() { [523, 659, 784, 1047].forEach(function (f, k) { beep(f, k * 0.09, 0.28, 0.16, 'sine'); }); }
   function sfxPop() { beep(660, 0, 0.09, 0.16, 'triangle'); beep(990, 0.07, 0.16, 0.14, 'sine'); }
   function drawAll() {
+    if (busy) return;
+    clearAutoEx();
     var n = freeSeats().length;
-    if (busy || availIdx().length < activeCount()) return;
+    if (availIdx().length < activeCount()) return;
     var vals = studentValues(n);
+    vacSet = null;
+    if (pairRows) {
+      var realN = vals.filter(function (v) { return v != null; }).length;
+      vacSet = podVacant(n - realN);
+      vals = vals.filter(function (v) { return v != null; });
+    }
     var final = apartShuffle(vals);
     if (!final) {
       announce.textContent = '';
@@ -1441,7 +1589,7 @@ td.pos, td.mate { color: var(--muted); }
     announce.hidden = true;
     hit = -1;
     if (reduce) {
-      seats = final; shown = final; drawn = true; render(); sfxDone();
+      seats = final; shown = final; drawn = true; markVacant(); render(); sfxDone();
       return;
     }
     busy = true;
@@ -1452,7 +1600,7 @@ td.pos, td.mate { color: var(--muted); }
         shown = place(shuffle(vals)); sfxTick(ticks);
       } else {
         clearInterval(timer);
-        seats = final; shown = final; drawn = true; busy = false; sfxDone();
+        seats = final; shown = final; drawn = true; busy = false; markVacant(); sfxDone();
       }
       render();
     }, 80);
@@ -1461,7 +1609,8 @@ td.pos, td.mate { color: var(--muted); }
   function drawNext() {
     if (busy || next > count) return;
     var free = [];
-    for (var i = 0; i < seats.length; i++) if (seats[i] == null && !excl[i]) free.push(i);
+    for (var i = 0; i < seats.length; i++) if (seats[i] == null && !excl[i] && !(vacSet && vacSet[i])) free.push(i);
+    if (!free.length && vacSet) { vacSet = null; for (var i2 = 0; i2 < seats.length; i2++) if (seats[i2] == null && !excl[i2]) free.push(i2); }
     if (!free.length) return;
     var no = next, warnApart = false;
     var cand = free;
@@ -1532,6 +1681,7 @@ td.pos, td.mate { color: var(--muted); }
     }
     announce.hidden = false;
     next = nextFree(no + 1);
+    if (next > count) markVacant();
     render();
     sfxPop();
   }
@@ -1543,15 +1693,19 @@ td.pos, td.mate { color: var(--muted); }
 
   function applySettings() {
     var oc = cols, or = rows;
-    cols = clamp(inCols.value, 1, 10, cols);
-    rows = clamp(inRows.value, 1, 12, rows);
-    if (cols !== oc || rows !== or) { excl = []; join = []; pins = {}; pinSeat = -1; podPrev = null; podPrevExcl = null; podBase = null; pairRows = false; }
-    var gmax = total() + gapCount();
+    if (!pairRows) {
+      cols = clamp(inCols.value, 1, 10, cols);
+      rows = clamp(inRows.value, 1, 12, rows);
+    }
+    if (cols !== oc || rows !== or) { excl = []; join = []; pins = {}; pinSeat = -1; podStash = null; podBase = null; pairRows = false; autoEx = {}; }
+    var gmax = pairRows ? 120 : total() + gapCount();
     count = clamp(inCount.value, 1, gmax, Math.min(count, gmax));
     inCols.value = cols; inRows.value = rows; inCount.value = count;
     ensureArrays();
     inGaps.value = gapText();
-    save(); buildNameFields(); reset();
+    buildNameFields();
+    if (pairRows) { applyPodLayout(); return; }
+    save(); reset();
   }
 
   /* ---- 인쇄: A4 가로 한 장짜리 그림을 만들어 보여 주고 인쇄 ---- */
@@ -1713,24 +1867,43 @@ td.pos, td.mate { color: var(--muted); }
         for (var k0 = 0; k0 < n; k0++) if (!excl[base + k0]) allOff = false;
         var dx = x0 + (cols - c - n) * (seatW + gapX), dw = n * seatW + (n - 1) * gapX;
         var PGp = podG();
-        if (pairRows && r % PGp.H === 0 && r + PGp.H <= rows && r + PGp.H - 1 <= rMax) {
+        var PHp = Math.min(PGp.H, rows - r);
+        if (pairRows && r % PGp.H === 0 && r + PHp - 1 <= rMax) {
           var allOff2 = true;
-          for (var k1 = 0; k1 < n; k1++) for (var kr = 0; kr < PGp.H; kr++) if (!excl[base + kr * cols + k1]) allOff2 = false;
+          for (var k1 = 0; k1 < n; k1++) for (var kr = 0; kr < PHp; kr++) if (!excl[base + kr * cols + k1]) allOff2 = false;
           if (!allOff2) {
-            var fy = gridTop + (rMax - r - PGp.H + 1) * (rowH + gapY) - 1.1, fh = PGp.H * rowH + (PGp.H - 1) * gapY + 2.2;
+            var fy = gridTop + (rMax - r - PHp + 1) * (rowH + gapY) - 1.1, fh = PHp * rowH + (PHp - 1) * gapY + 2.2;
             box(dx - 1.1, fy, dw + 2.2, fh, 2.5); g.fillStyle = '#f1f4f2'; g.fill();
             g.setLineDash([mm(1.6), mm(1.2)]); g.lineWidth = mm(0.35); g.strokeStyle = '#6f8a7e'; g.stroke(); g.setLineDash([]);
           }
         }
         if (!allOff) {
-          box(dx, y, dw, rowH, 1.5); g.fillStyle = '#fff'; g.fill();
-          g.setLineDash([]); g.lineWidth = mm(0.4); g.strokeStyle = '#222'; g.stroke();
-          for (var k = 0; k < n; k++) {
-            var i = base + k, vk = n - 1 - k, sx = dx + vk * (seatW + gapX);
-            if (vk > 0) line(sx - gapX / 2, y + 1.5, sx - gapX / 2, y + rowH - 1.5, 0.3, '#888', true);
-            if (excl[i] || seats[i] == null) continue;
-            drawSeat(seats[i], sx, y, i);
+          var runs = [[0, n]];
+          if (pairRows && n >= 2) {
+            var hasO2 = false, hasV2 = false;
+            for (var ck = 0; ck < n; ck++) { if (excl[base + ck] || seats[base + ck] == null) hasV2 = true; else hasO2 = true; }
+            if (hasO2 && hasV2) {
+              runs = [];
+              for (var ck2 = 0; ck2 < n; ) {
+                if (excl[base + ck2] || seats[base + ck2] == null) { ck2++; continue; }
+                var e3 = ck2 + 1;
+                while (e3 < n && !excl[base + e3] && seats[base + e3] != null) e3++;
+                runs.push([ck2, e3 - ck2]);
+                ck2 = e3;
+              }
+            }
           }
+          runs.forEach(function (rn) {
+            var rdx = dx + (n - rn[0] - rn[1]) * (seatW + gapX), rdw = rn[1] * seatW + (rn[1] - 1) * gapX;
+            box(rdx, y, rdw, rowH, 1.5); g.fillStyle = '#fff'; g.fill();
+            g.setLineDash([]); g.lineWidth = mm(0.4); g.strokeStyle = '#222'; g.stroke();
+            for (var k = rn[0]; k < rn[0] + rn[1]; k++) {
+              var i = base + k, vk = n - 1 - k, sx = dx + vk * (seatW + gapX);
+              if (k > rn[0]) line(sx + seatW + gapX / 2, y + 1.5, sx + seatW + gapX / 2, y + rowH - 1.5, 0.3, '#888', true);
+              if (excl[i] || seats[i] == null) continue;
+              drawSeat(seats[i], sx, y, i);
+            }
+          });
         }
         c += n;
       }
@@ -1887,7 +2060,7 @@ td.pos, td.mate { color: var(--muted); }
     zTimer = setTimeout(function () {
       if (zHover || zBar.contains(document.activeElement)) { zShow(); return; }
       zBar.classList.add('idle');
-    }, 2500);
+    }, 1500);
   }
   ['scroll', 'touchstart', 'touchmove', 'pointerdown', 'pointermove', 'wheel', 'keydown'].forEach(function (ev) {
     window.addEventListener(ev, zShow, { passive: true, capture: true });
@@ -1942,8 +2115,13 @@ td.pos, td.mate { color: var(--muted); }
     if (editMode !== '' || busy) return;
     var d = e.target.closest ? e.target.closest('.desk') : null;
     if (!d) return;
+    var isSeat = false;
+    if (pairRows) {
+      var sd = e.target.closest ? e.target.closest('.seat') : null;
+      if (sd && !sd.classList.contains('vacant') && sd.querySelector('.no')) { d = sd; isSeat = true; }
+    }
     var touch = e.pointerType === 'touch';
-    drag = { el: d, x: e.clientX, y: e.clientY, on: false, target: null, touch: touch, armed: !touch, timer: null };
+    drag = { seat: isSeat, el: d, x: e.clientX, y: e.clientY, on: false, target: null, touch: touch, armed: !touch, timer: null };
     if (touch) {
       var me = drag;
       me.timer = setTimeout(function () { me.armed = true; if (navigator.vibrate) { try { navigator.vibrate(15); } catch (er) {} } }, 280);
@@ -1962,8 +2140,18 @@ td.pos, td.mate { color: var(--muted); }
       drag.el.classList.add('dragging');
     }
     drag.el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-    var t = deskUnder(e.clientX, e.clientY, drag.el);
-    if (t && t.getAttribute('data-n') !== drag.el.getAttribute('data-n')) t = null;
+    var t;
+    if (drag.seat) {
+      t = null;
+      var lst = document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY) : [];
+      for (var li = 0; li < lst.length; li++) {
+        var sx = lst[li].closest ? lst[li].closest('.seat') : null;
+        if (sx && sx !== drag.el) { t = sx; break; }
+      }
+    } else {
+      t = deskUnder(e.clientX, e.clientY, drag.el);
+      if (t && t.getAttribute('data-n') !== drag.el.getAttribute('data-n')) t = null;
+    }
     if (drag.target && drag.target !== t) drag.target.classList.remove('drop');
     if (t) t.classList.add('drop');
     drag.target = t;
@@ -1979,7 +2167,7 @@ td.pos, td.mate { color: var(--muted); }
     d.el.classList.remove('dragging');
     d.el.style.transform = '';
     if (d.target) d.target.classList.remove('drop');
-    if (!cancel && d.target) swapDesks(d.el, d.target); else render();
+    if (!cancel && d.target) { if (d.seat) swapSeats(+d.el.getAttribute('data-i'), +d.target.getAttribute('data-i')); else swapDesks(d.el, d.target); } else render();
   }
   window.addEventListener('pointerup', function () { endDrag(false); });
   window.addEventListener('pointercancel', function () { endDrag(true); });
