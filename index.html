@@ -318,10 +318,19 @@ td.pos, td.mate { color: var(--muted); }
     <div class="group">
       <span class="lab">책상 편집</span>
       <div class="seg" style="--n:2" role="group" aria-label="책상 편집 방식">
-        <button type="button" id="edEx" aria-pressed="true">눌러서 제외</button>
+        <button type="button" id="edEx" aria-pressed="false">눌러서 제외</button>
         <button type="button" id="edMv" aria-pressed="false">끌어서 옮기기</button>
         <button type="button" id="edJn" aria-pressed="false">붙이기·떼기</button>
         <button type="button" id="edPin" aria-pressed="false">자리 고정</button>
+      </div>
+    </div>
+    <div class="group">
+      <span class="lab">책상 배열 (한 번에 바꾸기)</span>
+      <div class="seg" style="--n:4" role="group" aria-label="책상 배열">
+        <button type="button" id="dk1" aria-pressed="false">1명씩</button>
+        <button type="button" id="dk2" aria-pressed="false">2명씩</button>
+        <button type="button" id="dk3" aria-pressed="false">3명씩</button>
+        <button type="button" id="dk4" aria-pressed="false">4명씩</button>
       </div>
     </div>
     <div class="pinpanel" id="pinPanel" hidden>
@@ -337,34 +346,8 @@ td.pos, td.mate { color: var(--muted); }
     <p class="hint" id="hint"></p>
   </section>
 
-  <div class="announce" id="announce" hidden aria-live="polite"></div>
-
-  <section class="panel" aria-label="뽑기">
-    <div class="group">
-      <span class="lab">책상 배열 (한 번에 바꾸기)</span>
-      <div class="seg" style="--n:4" role="group" aria-label="책상 배열">
-        <button type="button" id="dk1" aria-pressed="false">1명씩</button>
-        <button type="button" id="dk2" aria-pressed="false">2명씩</button>
-        <button type="button" id="dk3" aria-pressed="false">3명씩</button>
-        <button type="button" id="dk4" aria-pressed="false">4명씩</button>
-      </div>
-    </div>
-    <div class="group">
-      <span class="lab">뽑는 방식</span>
-      <div class="seg" role="group" aria-label="뽑는 방식">
-        <button type="button" id="mAll" aria-pressed="true">전체 섞기</button>
-        <button type="button" id="mOne" aria-pressed="false">한 명씩 뽑기</button>
-      </div>
-    </div>
-    <button type="button" class="go" id="go">자리 뽑기</button>
-    <div class="row">
-      <button type="button" class="ghost" id="reset">처음으로</button>
-      <button type="button" class="ghost" id="print">인쇄하기</button>
-    </div>
-  </section>
-
   <section class="panel">
-    <details id="settings">
+    <details id="settings" open>
       <summary>설정 · 이름 입력</summary>
       <div class="fields">
         <div class="field"><label for="inCols">가로(열)</label><input id="inCols" type="number" inputmode="numeric" min="1" max="10"></div>
@@ -381,6 +364,23 @@ td.pos, td.mate { color: var(--muted); }
         </details>
       </div>
     </details>
+  </section>
+
+  <div class="announce" id="announce" hidden aria-live="polite"></div>
+
+  <section class="panel" aria-label="뽑기">
+    <div class="group">
+      <span class="lab">뽑는 방식</span>
+      <div class="seg" role="group" aria-label="뽑는 방식">
+        <button type="button" id="mAll" aria-pressed="true">전체 섞기</button>
+        <button type="button" id="mOne" aria-pressed="false">한 명씩 뽑기</button>
+      </div>
+    </div>
+    <button type="button" class="go" id="go">자리 뽑기</button>
+    <div class="row">
+      <button type="button" class="ghost" id="reset">처음으로</button>
+      <button type="button" class="ghost" id="print">인쇄하기</button>
+    </div>
   </section>
 
   <section class="panel">
@@ -439,7 +439,7 @@ td.pos, td.mate { color: var(--muted); }
   var cols = 5, rows = 6, count = 30, namesText = '', mode = 'all';
   var gap = {};
   var excl = [], join = [], pins = {};
-  var editMode = 'exclude', pinSeat = -1, drag = null;
+  var editMode = '', pinSeat = -1, drag = null;
   var seats = [], shown = [], next = 1, hit = -1, drawn = false, busy = false;
 
   function rnd(n) {
@@ -694,9 +694,9 @@ td.pos, td.mate { color: var(--muted); }
   }
 
   function setEdit(m) {
-    if (busy || m === editMode) return;
-    editMode = m;
-    if (m !== 'pin') pinSeat = -1;
+    if (busy) return;
+    editMode = (m === editMode) ? '' : m;
+    if (editMode !== 'pin') pinSeat = -1;
     render();
   }
 
@@ -794,7 +794,7 @@ td.pos, td.mate { color: var(--muted); }
           (editMode === 'move' ? ', 끌어서 같은 크기의 책상과 바꾸기' :
             editMode === 'join' ? '' :
             editMode === 'pin' ? ', 자리를 눌러 학생 고정' :
-            allOff ? ', 제외됨. 누르면 다시 사용' : ', 누르면 제외'));
+            editMode === 'exclude' ? (allOff ? ', 제외됨. 누르면 다시 사용' : ', 누르면 제외') : (allOff ? ', 제외됨' : '')));
         dk.addEventListener('click', clickDesk.bind(null, idxs));
         slot.appendChild(dk);
         if (editMode === 'join') {
@@ -818,7 +818,9 @@ td.pos, td.mate { color: var(--muted); }
         ? '책상 사이의 +를 누르면 두 책상이 붙어요. 몇 명이든 이어 붙일 수 있어요. 붙은 책상 위쪽의 −를 누르면 그 자리에서 떨어져요.'
         : editMode === 'pin'
           ? '자리를 누르고 앉힐 학생을 고르면 그 학생은 그 자리에 고정돼요. 고정한 자리는 뽑기에서 빠지고 자물쇠가 붙어요. 고정을 바꾸면 뽑은 결과는 처음으로 돌아가요.'
-          : '책상을 누르면 제외되고, 한 번 더 누르면 돌아와요. 제외하면 뽑은 결과는 처음으로 돌아가요.') +
+          : editMode === 'exclude'
+            ? '책상을 누르면 제외되고, 한 번 더 누르면 돌아와요. 제외하면 뽑은 결과는 처음으로 돌아가요.'
+            : '위 버튼에서 편집 방식을 고르면 책상을 고칠 수 있어요. 고른 버튼을 한 번 더 누르면 꺼져요.') +
       ' 칠판 쪽이 1줄이에요.';
     renderPin();
     renderRoster();
