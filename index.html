@@ -97,6 +97,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus
   display: flex; flex-direction: column; row-gap: 20px; padding: 4px 4px 10px;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
+.tabpan { display: flex; flex-direction: column; gap: 12px; }
+.tabpan[hidden] { display: none; }
+.rowg.pod { row-gap: 8px; }
+.podframe { margin: -6px -5px; border: 2px dashed #7A9A8C; border-radius: 14px; background: rgba(120, 160, 140, .10); pointer-events: none; }
+.rowg.pod .slot { z-index: 1; }
 .rowg { display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); column-gap: 12px; }
 .slot { position: relative; min-width: 0; }
 .grid.moving .desk { cursor: pointer; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
@@ -255,7 +260,8 @@ input[type="number"], input[type="text"], textarea {
 .gapbtn[aria-pressed="true"] { background: var(--focus); color: var(--on-focus); border-color: var(--focus); }
 .apart { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
 .addbox { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
-.zoombar { position: fixed; left: 14px; bottom: 14px; z-index: 20; display: flex; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; opacity: .75; }
+.zoombar { position: fixed; left: 14px; bottom: 14px; z-index: 20; display: flex; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; opacity: .75; transition: opacity .25s ease, transform .25s ease; }
+.zoombar.idle { opacity: 0; transform: translateY(8px); pointer-events: none; }
 .zoombar:hover, .zoombar:focus-within { opacity: 1; }
 .zoombar button { border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; min-width: 38px; height: 38px; padding: 0 8px; cursor: pointer; }
 .zoombar .zbox { display: flex; align-items: center; font-size: 13px; color: var(--muted); }
@@ -371,20 +377,50 @@ td.pos, td.mate { color: var(--muted); }
   <section class="panel">
     <details id="settings" open>
       <summary>설정</summary>
-    <div class="group">
-      <span class="lab">책상 편집</span>
-      <div class="seg btns" style="--n:2" role="group" aria-label="책상 편집 방식">
-        <button type="button" id="edJn" aria-pressed="false">책상 붙이기·떼기</button>
-        <button type="button" id="edPin" aria-pressed="false">자리 고정</button>
+    <div class="seg btns" style="--n:2" role="tablist" aria-label="배치 방식">
+      <button type="button" id="tabSeat" aria-pressed="true">자리 배치</button>
+      <button type="button" id="tabPod" aria-pressed="false">모둠</button>
+    </div>
+    <div id="panSeat" class="tabpan">
+      <div class="group">
+        <span class="lab">책상 편집</span>
+        <div class="seg btns" style="--n:2" role="group" aria-label="책상 편집 방식">
+          <button type="button" id="edJn" aria-pressed="false">책상 붙이기·떼기</button>
+          <button type="button" id="edPin" aria-pressed="false">자리 고정</button>
+        </div>
+      </div>
+      <div class="group">
+        <span class="lab">책상 배열 (한 번에 바꾸기)</span>
+        <div class="seg btns" style="--n:4" role="group" aria-label="책상 배열">
+          <button type="button" id="dk1" aria-pressed="false">1명씩</button>
+          <button type="button" id="dk2" aria-pressed="false">2명씩</button>
+          <button type="button" id="dk3" aria-pressed="false">3명씩</button>
+          <button type="button" id="dk4" aria-pressed="false">4명씩</button>
+        </div>
       </div>
     </div>
-    <div class="group">
-      <span class="lab">책상 배열 (한 번에 바꾸기)</span>
-      <div class="seg btns" style="--n:4" role="group" aria-label="책상 배열">
-        <button type="button" id="dk1" aria-pressed="false">1명씩</button>
-        <button type="button" id="dk2" aria-pressed="false">2명씩</button>
-        <button type="button" id="dk3" aria-pressed="false">3명씩</button>
-        <button type="button" id="dk4" aria-pressed="false">4명씩</button>
+    <div id="panPod" class="tabpan" hidden>
+      <div class="group">
+        <span class="lab">모둠 방향</span>
+        <div class="seg btns" style="--n:2" role="group" aria-label="모둠 방향">
+          <button type="button" id="pdH" aria-pressed="true">가로 모둠<br><small>앞뒤 2줄로 묶기</small></button>
+          <button type="button" id="pdV" aria-pressed="false">세로 모둠<br><small>5·6명은 3줄로 묶기</small></button>
+        </div>
+      </div>
+      <div class="group">
+        <span class="lab">모둠 인원</span>
+        <div class="seg btns" style="--n:3" role="group" aria-label="모둠 인원">
+          <button type="button" id="pd4" aria-pressed="true">4명 모둠</button>
+          <button type="button" id="pd5" aria-pressed="false">5명 모둠</button>
+          <button type="button" id="pd6" aria-pressed="false">6명 모둠</button>
+        </div>
+      </div>
+      <div class="group">
+        <span class="lab">책상 편집</span>
+        <div class="seg btns" style="--n:1" role="group" aria-label="모둠 책상 편집">
+          <button type="button" id="edPin2" aria-pressed="false">자리 고정</button>
+        </div>
+        <p class="hint" style="margin:0">모둠 탭은 자리 배치 탭의 배치를 건드리지 않아요. 자리 배치 탭을 누르면 원래 배치로 돌아가요.</p>
       </div>
     </div>
       <hr class="sep">
@@ -535,6 +571,11 @@ td.pos, td.mate { color: var(--muted); }
   var apart = [], apartDist = 1, apartSel = {};
   var tog = [], togDist = 1, togSel = {};
   var foc = [];
+  var pairRows = false, podPrev = null, podPrevExcl = null, podBase = null, podSize = 4, podDir = 'h';
+  function podG() {
+    var v = podDir === 'v';
+    return { H: (v && podSize >= 5) ? 3 : 2, w: podSize === 4 ? 2 : (v ? 2 : 3), five: podSize === 5 };
+  }
   var excl = [], join = [], pins = {};
   var editMode = '', pinSeat = -1, drag = null;
   var seats = [], shown = [], next = 1, hit = -1, drawn = false, busy = false;
@@ -561,6 +602,16 @@ td.pos, td.mate { color: var(--muted); }
     while (join.length < n) join.push(false);
     join.length = n;
     for (i = 0; i < n; i++) if (i % cols === cols - 1) join[i] = false;
+    if (pairRows) {
+      var G0 = podG();
+      for (var pr = 0; pr + G0.H <= rows; pr += G0.H) for (var pc2 = 0; pc2 < cols; pc2++) {
+        for (var pk = 1; pk < G0.H; pk++) join[(pr + pk) * cols + pc2] = join[pr * cols + pc2];
+        if (G0.five) {
+          var li = (pr + G0.H - 1) * cols + pc2;
+          if (G0.H === 2 ? pc2 % 3 === 1 : pc2 % 2 === 0) join[li] = false;
+        }
+      }
+    }
     Object.keys(gap).forEach(function (k) { if (+k < 1 || +k > count) delete gap[k]; });
     cleanApart();
     var seen = {};
@@ -721,10 +772,17 @@ td.pos, td.mate { color: var(--muted); }
     while (e % cols < cols - 1 && join[e]) e++;
     return [s, e];
   }
-  function deskSize(i) { var r = deskRange(i); return r[1] - r[0] + 1; }
+  function hasPod(i) { var H = podG().H, r0 = Math.floor(i / cols); r0 -= r0 % H; return pairRows && r0 + H <= rows; }
+  function deskSize(i) { var r = deskRange(i); return (r[1] - r[0] + 1) * (hasPod(i) ? podG().H : 1); }
   function mates(i) {
-    var r = deskRange(i), out = [];
-    for (var j = r[0]; j <= r[1]; j++) if (j !== i && seats[j] != null) out.push(seats[j]);
+    var row = Math.floor(i / cols), rs = [row], r;
+    if (hasPod(i)) { var H = podG().H, r0 = row - row % H; rs = []; for (var q = 0; q < H; q++) rs.push(r0 + q); r = deskRange(r0 * cols + (i % cols)); }
+    else r = deskRange(i);
+    var out = [];
+    rs.forEach(function (rw) {
+      var off = (rw - Math.floor(r[0] / cols)) * cols;
+      for (var j = r[0]; j <= r[1]; j++) if (j + off !== i && seats[j + off] != null) out.push(seats[j + off]);
+    });
     return out;
   }
   function groupCount() {
@@ -782,7 +840,7 @@ td.pos, td.mate { color: var(--muted); }
     try {
       localStorage.setItem(KEY, JSON.stringify({
         cols: cols, rows: rows, count: count, namesText: namesText, mode: mode, title: sheetTitle, msg: sheetMsg, dFrom: dateFrom, dTo: dateTo,
-        gaps: Object.keys(gap).map(Number), apart: apart, apartDist: apartDist, tog: tog, togDist: togDist, foc: foc,
+        gaps: Object.keys(gap).map(Number), apart: apart, apartDist: apartDist, tog: tog, togDist: togDist, foc: foc, pod: pairRows, podSize: podSize, podDir: podDir, podPrev: pairRows && podPrev ? listTrue(podPrev) : null, podPrevOff: pairRows && podPrevExcl ? listTrue(podPrevExcl) : null, podBase: podBase ? listTrue(podBase) : null,
         off: listTrue(excl), join: listTrue(join),
         pins: Object.keys(pins).map(function (k) { return [+k, pins[k]]; })
       }));
@@ -802,6 +860,12 @@ td.pos, td.mate { color: var(--muted); }
       if (Array.isArray(s.tog)) tog = s.tog.filter(Array.isArray);
       togDist = s.togDist === 2 ? 2 : 1;
       if (Array.isArray(s.foc)) foc = s.foc;
+      pairRows = s.pod === true;
+      podSize = (s.podSize === 5 || s.podSize === 6) ? s.podSize : 4;
+      podDir = s.podDir === 'v' ? 'v' : 'h';
+      if (pairRows && Array.isArray(s.podPrevOff)) { podPrevExcl = new Array(total()).fill(false); s.podPrevOff.forEach(function (i) { if (i >= 0 && i < total()) podPrevExcl[i] = true; }); }
+      if (Array.isArray(s.podBase)) { podBase = new Array(total()).fill(false); s.podBase.forEach(function (i) { if (i >= 0 && i < total()) podBase[i] = true; }); }
+      if (pairRows && Array.isArray(s.podPrev)) { podPrev = new Array(total()).fill(false); s.podPrev.forEach(function (i) { if (i >= 0 && i < total()) podPrev[i] = true; }); }
       namesText = typeof s.namesText === 'string' ? s.namesText : '';
       mode = s.mode === 'one' ? 'one' : 'all';
       if (typeof s.title === 'string') sheetTitle = s.title;
@@ -992,6 +1056,7 @@ td.pos, td.mate { color: var(--muted); }
     if (Date.now() - lastDragEnd < 400) return;
     var allOff = idxs.every(function (i) { return excl[i]; });
     idxs.forEach(function (i) { excl[i] = !allOff; });
+    syncPodBase();
     save();
     reset();
   }
@@ -1004,6 +1069,7 @@ td.pos, td.mate { color: var(--muted); }
       var ia = ar * cols + as + k, ib = br * cols + bs + k;
       var t = seats[ia]; seats[ia] = seats[ib]; seats[ib] = t;
       var e = excl[ia]; excl[ia] = excl[ib]; excl[ib] = e;
+      if (podBase) { var pe = podBase[ia]; podBase[ia] = podBase[ib]; podBase[ib] = pe; }
       var pa = pins[ia], pb = pins[ib];
       delete pins[ia]; delete pins[ib];
       if (pa != null) pins[ib] = pa;
@@ -1023,9 +1089,69 @@ td.pos, td.mate { color: var(--muted); }
   }
 
   function joinAt(i) { if (busy) return; join[i] = true; ensureArrays(); save(); render(); }
-  function splitAt(i) { if (busy) return; join[i] = false; save(); render(); }
-  function setGroups(g) { if (busy) return; join = groupPattern(g); ensureArrays(); save(); render(); }
-
+  function splitAt(i) { if (busy) return; join[i] = false; ensureArrays(); save(); render(); }
+  function setGroups(g) {
+    if (busy || pairRows) return;
+    join = groupPattern(g);
+    ensureArrays(); save(); render();
+  }
+  function fiveSeats() {
+    var G = podG(), out = [];
+    if (!G.five) return out;
+    for (var pr = 0; pr + G.H <= rows; pr += G.H) {
+      var last = pr + G.H - 1;
+      if (G.H === 2) { for (var pc = 0; pc + 2 < cols; pc += 3) out.push(last * cols + pc + 2); }
+      else { for (var pc3 = 0; pc3 + 1 < cols; pc3 += 2) out.push(last * cols + pc3 + 1); }
+    }
+    return out;
+  }
+  function syncPodBase() {
+    if (!pairRows) return;
+    podBase = excl.slice();
+    fiveSeats().forEach(function (k) { podBase[k] = false; });
+  }
+  function applyPodLayout() {
+    if (!podBase || podBase.length !== total()) podBase = excl.slice();
+    excl = podBase.slice();
+    join = groupPattern(podG().w);
+    fiveSeats().forEach(function (k) { excl[k] = true; });
+    ensureArrays(); save(); fitSeats();
+  }
+  function enterPod() {
+    if (busy || pairRows) return;
+    podPrev = join.slice(); podPrevExcl = excl.slice();
+    if (!podBase || podBase.length !== total()) podBase = excl.slice();
+    pairRows = true;
+    if (editMode === 'join') editMode = '';
+    applyPodLayout();
+  }
+  function leavePod() {
+    if (busy || !pairRows) return;
+    pairRows = false;
+    if (podPrev) join = podPrev.slice();
+    if (podPrevExcl) excl = podPrevExcl.slice();
+    podPrev = null; podPrevExcl = null;
+    ensureArrays(); save(); fitSeats();
+  }
+  function setPodSize(g) { if (busy) return; podSize = g; if (pairRows) applyPodLayout(); else { save(); renderControls(); } }
+  function setPodDir(d) { if (busy) return; podDir = d; if (pairRows) applyPodLayout(); else { save(); renderControls(); } }
+  /* 모둠 때문에 제외된 자리에 앉아 있던 학생은 빈자리로 옮겨 줘요 */
+  function fitSeats() {
+    var moved = [], empt = [], i;
+    for (i = 0; i < seats.length; i++) {
+      if (excl[i] && seats[i] != null) { moved.push(seats[i]); }
+    }
+    if (mode === 'all' && !drawn) { reset(); return; }
+    if (!moved.length) { render(); return; }
+    for (i = 0; i < seats.length; i++) if (!excl[i] && seats[i] == null && pins[i] == null) empt.push(i);
+    /* 자리가 모자라면 그대로 두어요. 모둠을 풀면 같은 자리로 돌아와요 */
+    if (empt.length < moved.length) { render(); return; }
+    shuffle(empt);
+    var q = 0;
+    for (i = 0; i < seats.length; i++) if (excl[i] && seats[i] != null) { var who = seats[i]; seats[i] = null; seats[empt[q]] = who; q++; }
+    shown = seats; hit = -1;
+    render();
+  }
   function pinStudent(no) {
     if (busy || pinSeat < 0) return;
     if (pins[pinSeat] === no) {
@@ -1051,17 +1177,35 @@ td.pos, td.mate { color: var(--muted); }
   function render() {
     grid.className = 'grid' + (editMode === '' ? ' moving' : '');
     grid.textContent = '';
+    var curPod = null;
     for (var r = 0; r < rows; r++) {
-      var rowEl = document.createElement('div');
-      rowEl.className = 'rowg';
-      rowEl.style.setProperty('--cols', cols);
+      var PG = podG(), podRow = pairRows && (r - r % PG.H) + PG.H <= rows;
+      var rowEl;
+      if (podRow && r % PG.H !== 0) rowEl = curPod;
+      else {
+        rowEl = document.createElement('div');
+        rowEl.className = 'rowg' + (podRow ? ' pod' : '');
+        rowEl.style.setProperty('--cols', cols);
+        grid.appendChild(rowEl);
+        if (podRow) curPod = rowEl;
+      }
       for (var c = 0; c < cols; ) {
         var base = r * cols + c;
         var n = 1;
         while (c + n < cols && join[base + n - 1]) n++;
         var slot = document.createElement('div');
         slot.className = 'slot';
-        slot.style.gridColumn = 'span ' + n;
+        slot.style.gridColumn = (c + 1) + ' / span ' + n;
+        if (podRow) {
+          slot.style.gridRow = (r % PG.H) + 1;
+          if (r % PG.H === 0) {
+            var fr = document.createElement('div');
+            fr.className = 'podframe';
+            fr.style.gridColumn = (c + 1) + ' / span ' + n;
+            fr.style.gridRow = '1 / span ' + PG.H;
+            rowEl.appendChild(fr);
+          }
+        }
         var dk = document.createElement('button');
         dk.type = 'button';
         dk.style.setProperty('--k', n);
@@ -1131,7 +1275,6 @@ td.pos, td.mate { color: var(--muted); }
         rowEl.appendChild(slot);
         c += n;
       }
-      grid.appendChild(rowEl);
     }
     hintEl.textContent = (editMode === 'join'
         ? '책상 사이의 +를 누르면 두 책상이 붙어요. 몇 명이든 이어 붙일 수 있어요. 붙은 책상 위쪽의 −를 누르면 그 자리에서 떨어져요.'
@@ -1198,6 +1341,17 @@ td.pos, td.mate { color: var(--muted); }
       var pat = groupPattern(g);
       dkBtns[g].setAttribute('aria-pressed', pat.every(function (v, i) { return v === join[i]; }));
     }
+    var pdOn = pairRows;
+    $('pd4').setAttribute('aria-pressed', podSize === 4);
+    $('pd5').setAttribute('aria-pressed', podSize === 5);
+    $('pd6').setAttribute('aria-pressed', podSize === 6);
+    $('pdH').setAttribute('aria-pressed', podDir === 'h');
+    $('pdV').setAttribute('aria-pressed', podDir === 'v');
+    $('tabSeat').setAttribute('aria-pressed', !pairRows);
+    $('tabPod').setAttribute('aria-pressed', pairRows);
+    $('panSeat').hidden = pairRows;
+    $('panPod').hidden = !pairRows;
+    $('edPin2').setAttribute('aria-pressed', editMode === 'pin');
     var gc = groupCount(), pc = pinCount();
     var avail = availIdx().length;
     var off = total() - avail;
@@ -1366,8 +1520,8 @@ td.pos, td.mate { color: var(--muted); }
       var sub = document.createElement('div');
       sub.className = 'sub';
       sub.textContent = ms.length
-        ? (size === 2 ? '짝꿍: ' : '같은 책상: ') + ms.map(label).join(', ')
-        : '같은 책상에 아직 아무도 없어요';
+        ? (hasPod(pick) ? '같은 모둠: ' : size === 2 ? '짝꿍: ' : '같은 책상: ') + ms.map(label).join(', ')
+        : (hasPod(pick) ? '같은 모둠에 아직 아무도 없어요' : '같은 책상에 아직 아무도 없어요');
       announce.appendChild(sub);
     }
     if (warnApart) {
@@ -1391,7 +1545,7 @@ td.pos, td.mate { color: var(--muted); }
     var oc = cols, or = rows;
     cols = clamp(inCols.value, 1, 10, cols);
     rows = clamp(inRows.value, 1, 12, rows);
-    if (cols !== oc || rows !== or) { excl = []; join = []; pins = {}; pinSeat = -1; }
+    if (cols !== oc || rows !== or) { excl = []; join = []; pins = {}; pinSeat = -1; podPrev = null; podPrevExcl = null; podBase = null; pairRows = false; }
     var gmax = total() + gapCount();
     count = clamp(inCount.value, 1, gmax, Math.min(count, gmax));
     inCols.value = cols; inRows.value = rows; inCount.value = count;
@@ -1558,6 +1712,16 @@ td.pos, td.mate { color: var(--muted); }
         var allOff = true;
         for (var k0 = 0; k0 < n; k0++) if (!excl[base + k0]) allOff = false;
         var dx = x0 + (cols - c - n) * (seatW + gapX), dw = n * seatW + (n - 1) * gapX;
+        var PGp = podG();
+        if (pairRows && r % PGp.H === 0 && r + PGp.H <= rows && r + PGp.H - 1 <= rMax) {
+          var allOff2 = true;
+          for (var k1 = 0; k1 < n; k1++) for (var kr = 0; kr < PGp.H; kr++) if (!excl[base + kr * cols + k1]) allOff2 = false;
+          if (!allOff2) {
+            var fy = gridTop + (rMax - r - PGp.H + 1) * (rowH + gapY) - 1.1, fh = PGp.H * rowH + (PGp.H - 1) * gapY + 2.2;
+            box(dx - 1.1, fy, dw + 2.2, fh, 2.5); g.fillStyle = '#f1f4f2'; g.fill();
+            g.setLineDash([mm(1.6), mm(1.2)]); g.lineWidth = mm(0.35); g.strokeStyle = '#6f8a7e'; g.stroke(); g.setLineDash([]);
+          }
+        }
         if (!allOff) {
           box(dx, y, dw, rowH, 1.5); g.fillStyle = '#fff'; g.fill();
           g.setLineDash([]); g.lineWidth = mm(0.4); g.strokeStyle = '#222'; g.stroke();
@@ -1714,6 +1878,21 @@ td.pos, td.mate { color: var(--muted); }
     try { localStorage.setItem('seatpicker.sound', soundOn ? '1' : '0'); } catch (e) {}
     if (soundOn) sfxPop();
   });
+  var zBar = $('zoomBar'), zTimer = null, zHover = false;
+  zBar.addEventListener('pointerenter', function () { zHover = true; });
+  zBar.addEventListener('pointerleave', function () { zHover = false; });
+  function zShow() {
+    zBar.classList.remove('idle');
+    clearTimeout(zTimer);
+    zTimer = setTimeout(function () {
+      if (zHover || zBar.contains(document.activeElement)) { zShow(); return; }
+      zBar.classList.add('idle');
+    }, 2500);
+  }
+  ['scroll', 'touchstart', 'touchmove', 'pointerdown', 'pointermove', 'wheel', 'keydown'].forEach(function (ev) {
+    window.addEventListener(ev, zShow, { passive: true, capture: true });
+  });
+  zShow();
   var extraView = $('extraView');
   $('gearBtn').addEventListener('click', function () { extraView.hidden = false; });
   $('extraClose').addEventListener('click', function () { extraView.hidden = true; });
@@ -1724,6 +1903,14 @@ td.pos, td.mate { color: var(--muted); }
   resetBtn.addEventListener('click', reset);
   mAll.addEventListener('click', function () { setMode('all'); });
   mOne.addEventListener('click', function () { setMode('one'); });
+  $('pd4').addEventListener('click', function () { setPodSize(4); });
+  $('pd6').addEventListener('click', function () { setPodSize(6); });
+  $('tabSeat').addEventListener('click', leavePod);
+  $('tabPod').addEventListener('click', function () { if (rows >= 2) enterPod(); });
+  $('edPin2').addEventListener('click', function () { setEdit('pin'); });
+  $('pdH').addEventListener('click', function () { setPodDir('h'); });
+  $('pdV').addEventListener('click', function () { setPodDir('v'); });
+  $('pd5').addEventListener('click', function () { setPodSize(5); });
   [1, 2, 3, 4].forEach(function (g) { dkBtns[g].addEventListener('click', function () { setGroups(g); }); });
   $('settings').addEventListener('toggle', function () { if (!this.open && editMode) setEdit(editMode); });
   edJn.addEventListener('click', function () { setEdit('join'); });
