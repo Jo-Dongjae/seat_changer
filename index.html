@@ -251,6 +251,12 @@ input[type="number"], input[type="text"], textarea {
 .gapbtn[aria-pressed="true"] { background: var(--focus); color: var(--on-focus); border-color: var(--focus); }
 .apart { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
 .addbox { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+.zoombar { position: fixed; left: 14px; bottom: 14px; z-index: 20; display: flex; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; opacity: .75; }
+.zoombar:hover, .zoombar:focus-within { opacity: 1; }
+.zoombar button { border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; min-width: 38px; height: 38px; padding: 0 8px; cursor: pointer; }
+.zoombar #zVal { font-size: 12px; min-width: 46px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.zoombar #zFit { font-size: 12px; border-left: 1px solid var(--line); padding: 0 12px; }
+@media print { .zoombar { display: none !important; } }
 .gear { position: fixed; right: 14px; bottom: 14px; z-index: 20; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted); opacity: .6; cursor: pointer; padding: 0; }
 .gear:hover, .gear:focus-visible { opacity: 1; }
 .xview { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; }
@@ -417,6 +423,12 @@ td.pos, td.mate { color: var(--muted); }
     </details>
   </section>
 
+  <div class="zoombar" id="zoomBar" role="group" aria-label="화면 크기">
+    <button type="button" id="zOut" aria-label="축소">−</button>
+    <button type="button" id="zVal" aria-label="100%로 되돌리기">100%</button>
+    <button type="button" id="zIn" aria-label="확대">+</button>
+    <button type="button" id="zFit" aria-label="책상과 뽑기 버튼 한 화면에 맞추기">한눈에</button>
+  </div>
   <button type="button" class="gear" id="gearBtn" aria-label="추가 설정 열기" title="추가 설정">
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg>
   </button>
@@ -1602,6 +1614,26 @@ td.pos, td.mate { color: var(--muted); }
     titleTimer = setTimeout(refreshSheet, 250);
   });
   window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !pv.hidden) closePrint(); });
+  var zoomVal = 1, wrapEl = document.querySelector('.wrap');
+  function setZoom(z, keep) {
+    zoomVal = Math.max(0.5, Math.min(1.6, Math.round(z * 100) / 100));
+    wrapEl.style.zoom = zoomVal === 1 ? '' : zoomVal;
+    $('zVal').textContent = Math.round(zoomVal * 100) + '%';
+    if (!keep) { try { localStorage.setItem('seatpicker.zoom', String(zoomVal)); } catch (e) {} }
+  }
+  $('zOut').addEventListener('click', function () { setZoom(zoomVal - 0.1); });
+  $('zIn').addEventListener('click', function () { setZoom(zoomVal + 0.1); });
+  $('zVal').addEventListener('click', function () { setZoom(1); });
+  $('zFit').addEventListener('click', function () {
+    $('settings').open = false;
+    setZoom(1, true);
+    var panel = $('go').closest('section'), top = wrapEl.getBoundingClientRect().top + window.scrollY;
+    var h = panel.getBoundingClientRect().bottom + window.scrollY - top + 12;
+    var w = wrapEl.getBoundingClientRect().width;
+    setZoom(Math.min((window.innerHeight - 56) / h, 1.6));
+    window.scrollTo(0, 0);
+  });
+  try { var zs = parseFloat(localStorage.getItem('seatpicker.zoom')); if (zs) setZoom(zs, true); } catch (e) {}
   var extraView = $('extraView');
   $('gearBtn').addEventListener('click', function () { extraView.hidden = false; });
   $('extraClose').addEventListener('click', function () { extraView.hidden = true; });
