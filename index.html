@@ -99,7 +99,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus
 }
 .rowg { display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); column-gap: 12px; }
 .slot { position: relative; min-width: 0; }
-.grid.moving .desk { touch-action: none; cursor: grab; }
+.grid.moving .desk { cursor: pointer; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 .desk.dragging { z-index: 10; cursor: grabbing; box-shadow: 0 3px 0 var(--desk-edge), 0 12px 20px rgba(0, 0, 0, 0.28); }
 .desk.drop { outline: 3px dashed var(--focus); outline-offset: 3px; }
 
@@ -214,6 +214,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus
 .seg button {
   border: 0; background: transparent; padding: 9px 4px; border-radius: 7px; cursor: pointer; font-weight: 500; color: var(--muted); min-width: 0;
 }
+.seg.btns { background: transparent; padding: 0; gap: 8px; }
+.seg.btns button { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 4px; font-weight: 600; box-shadow: 0 2px 0 var(--line); transition: transform .05s, box-shadow .05s; }
+.seg.btns button:active { transform: translateY(2px); box-shadow: 0 0 0 var(--line); }
+.seg.btns button[aria-pressed="true"] { background: var(--focus); color: var(--on-focus); border-color: var(--focus); box-shadow: inset 0 2px 3px rgba(0,0,0,.25); transform: translateY(1px); }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
 .go {
   width: 100%; border: 0; cursor: pointer;
@@ -269,7 +273,9 @@ input[type="number"], input[type="text"], textarea {
 #printView.roster-only .pv-titlef, #printView.roster-only .pv-msgf, #printView.roster-only .pv-check { display: none; }
 @media print { .gear, .xview { display: none !important; } }
 .soundrow { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.soundrow input { width: 18px; height: 18px; }
+.soundrow input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 0; flex: none; background: #fff; border: 1.5px solid #8A9791; border-radius: 5px; cursor: pointer; display: grid; place-items: center; }
+.soundrow input:checked { background: var(--focus); border-color: var(--focus); }
+.soundrow input:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
 .mini-fig { display: flex; align-items: center; gap: 10px; }
 .mini-fig svg { flex: none; width: 108px; height: auto; }
 .mini-fig p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -367,16 +373,14 @@ td.pos, td.mate { color: var(--muted); }
       <summary>설정</summary>
     <div class="group">
       <span class="lab">책상 편집</span>
-      <div class="seg" style="--n:2" role="group" aria-label="책상 편집 방식">
-        <button type="button" id="edEx" aria-pressed="false">눌러서 제외</button>
-        <button type="button" id="edMv" aria-pressed="false">끌어서 옮기기</button>
-        <button type="button" id="edJn" aria-pressed="false">붙이기·떼기</button>
+      <div class="seg btns" style="--n:2" role="group" aria-label="책상 편집 방식">
+        <button type="button" id="edJn" aria-pressed="false">책상 붙이기·떼기</button>
         <button type="button" id="edPin" aria-pressed="false">자리 고정</button>
       </div>
     </div>
     <div class="group">
       <span class="lab">책상 배열 (한 번에 바꾸기)</span>
-      <div class="seg" style="--n:4" role="group" aria-label="책상 배열">
+      <div class="seg btns" style="--n:4" role="group" aria-label="책상 배열">
         <button type="button" id="dk1" aria-pressed="false">1명씩</button>
         <button type="button" id="dk2" aria-pressed="false">2명씩</button>
         <button type="button" id="dk3" aria-pressed="false">3명씩</button>
@@ -514,7 +518,7 @@ td.pos, td.mate { color: var(--muted); }
   var grid = $('grid'), statusEl = $('status'), announce = $('announce'), go = $('go'), hintEl = $('hint');
   var mAll = $('mAll'), mOne = $('mOne'), resetBtn = $('reset');
   var dkBtns = [null, $('dk1'), $('dk2'), $('dk3'), $('dk4')];
-  var edEx = $('edEx'), edMv = $('edMv'), edJn = $('edJn'), edPin = $('edPin');
+  var edJn = $('edJn'), edPin = $('edPin');
   var pinPanel = $('pinPanel'), pinTitle = $('pinTitle'), pinChips = $('pinChips'), pinClear = $('pinClear'), pinAll = $('pinAll');
   var inCols = $('inCols'), inRows = $('inRows'), inCount = $('inCount'), inNames = $('inNames');
   var nameFields = $('nameFields'), inGaps = $('inGaps');
@@ -973,6 +977,7 @@ td.pos, td.mate { color: var(--muted); }
     return out;
   }
 
+  var lastDragEnd = 0;
   function clickDesk(idxs, e) {
     if (busy) return;
     if (editMode === 'pin') {
@@ -983,7 +988,8 @@ td.pos, td.mate { color: var(--muted); }
       }
       return;
     }
-    if (editMode !== 'exclude') return;
+    if (editMode !== '') return;
+    if (Date.now() - lastDragEnd < 400) return;
     var allOff = idxs.every(function (i) { return excl[i]; });
     idxs.forEach(function (i) { excl[i] = !allOff; });
     save();
@@ -1043,7 +1049,7 @@ td.pos, td.mate { color: var(--muted); }
   }
 
   function render() {
-    grid.className = 'grid' + (editMode === 'move' ? ' moving' : '');
+    grid.className = 'grid' + (editMode === '' ? ' moving' : '');
     grid.textContent = '';
     for (var r = 0; r < rows; r++) {
       var rowEl = document.createElement('div');
@@ -1107,10 +1113,9 @@ td.pos, td.mate { color: var(--muted); }
         dk.className = 'desk' + (allOff ? ' off' : '') + (hitHere ? ' hit' : '');
         dk.setAttribute('aria-pressed', allOff);
         dk.setAttribute('aria-label', (r + 1) + '줄 ' + (c + 1) + '번째 책상' + (n >= 2 ? '(' + n + '명)' : '') +
-          (editMode === 'move' ? ', 끌어서 같은 크기의 책상과 바꾸기' :
-            editMode === 'join' ? '' :
+          (editMode === 'join' ? '' :
             editMode === 'pin' ? ', 자리를 눌러 학생 고정' :
-            editMode === 'exclude' ? (allOff ? ', 제외됨. 누르면 다시 사용' : ', 누르면 제외') : (allOff ? ', 제외됨' : '')));
+            (allOff ? ', 제외됨. 누르면 다시 사용' : ', 누르면 제외, 끌어서 같은 크기의 책상과 바꾸기')));
         dk.addEventListener('click', clickDesk.bind(null, idxs));
         slot.appendChild(dk);
         if (editMode === 'join') {
@@ -1128,15 +1133,11 @@ td.pos, td.mate { color: var(--muted); }
       }
       grid.appendChild(rowEl);
     }
-    hintEl.textContent = (editMode === 'move'
-      ? '책상을 끌어서 다른 책상 위에 놓으면 서로 바뀌어요. 제외한 빈 책상과 바꾸면 책상만 옮겨져요. 자리 수가 같은 책상끼리 바꿀 수 있어요.'
-      : editMode === 'join'
+    hintEl.textContent = (editMode === 'join'
         ? '책상 사이의 +를 누르면 두 책상이 붙어요. 몇 명이든 이어 붙일 수 있어요. 붙은 책상 위쪽의 −를 누르면 그 자리에서 떨어져요.'
         : editMode === 'pin'
           ? '자리를 누르고 앉힐 학생을 고르면 그 학생은 그 자리에 고정돼요. 고정한 자리는 뽑기에서 빠지고 자물쇠가 붙어요. 고정을 바꾸면 뽑은 결과는 처음으로 돌아가요.'
-          : editMode === 'exclude'
-            ? '책상을 누르면 제외되고, 한 번 더 누르면 돌아와요. 제외하면 뽑은 결과는 처음으로 돌아가요.'
-            : '위 버튼에서 편집 방식을 고르면 책상을 고칠 수 있어요. 고른 버튼을 한 번 더 누르면 꺼져요.') +
+          : '책상을 누르면 제외되고 한 번 더 누르면 돌아와요. 책상을 끌어서(터치는 꾹 누른 채로) 다른 책상 위에 놓으면 서로 바뀌어요. 자리 수가 같은 책상끼리 바꿀 수 있어요.') +
       ' 칠판 쪽이 1줄이에요.';
     renderPin();
     renderRoster();
@@ -1191,8 +1192,6 @@ td.pos, td.mate { color: var(--muted); }
   function renderControls() {
     mAll.setAttribute('aria-pressed', mode === 'all');
     mOne.setAttribute('aria-pressed', mode === 'one');
-    edEx.setAttribute('aria-pressed', editMode === 'exclude');
-    edMv.setAttribute('aria-pressed', editMode === 'move');
     edJn.setAttribute('aria-pressed', editMode === 'join');
     edPin.setAttribute('aria-pressed', editMode === 'pin');
     for (var g = 1; g <= 4; g++) {
@@ -1727,8 +1726,6 @@ td.pos, td.mate { color: var(--muted); }
   mOne.addEventListener('click', function () { setMode('one'); });
   [1, 2, 3, 4].forEach(function (g) { dkBtns[g].addEventListener('click', function () { setGroups(g); }); });
   $('settings').addEventListener('toggle', function () { if (!this.open && editMode) setEdit(editMode); });
-  edEx.addEventListener('click', function () { setEdit('exclude'); });
-  edMv.addEventListener('click', function () { setEdit('move'); });
   edJn.addEventListener('click', function () { setEdit('join'); });
   edPin.addEventListener('click', function () { setEdit('pin'); });
   $('pinClose').addEventListener('click', function () {
@@ -1753,18 +1750,27 @@ td.pos, td.mate { color: var(--muted); }
     }
     return null;
   }
-  grid.addEventListener('contextmenu', function (e) { if (editMode === 'move') e.preventDefault(); });
+  grid.addEventListener('contextmenu', function (e) { if (editMode === '') e.preventDefault(); });
   grid.addEventListener('pointerdown', function (e) {
-    if (editMode !== 'move' || busy) return;
+    if (editMode !== '' || busy) return;
     var d = e.target.closest ? e.target.closest('.desk') : null;
     if (!d) return;
-    drag = { el: d, x: e.clientX, y: e.clientY, on: false, target: null };
+    var touch = e.pointerType === 'touch';
+    drag = { el: d, x: e.clientX, y: e.clientY, on: false, target: null, touch: touch, armed: !touch, timer: null };
+    if (touch) {
+      var me = drag;
+      me.timer = setTimeout(function () { me.armed = true; if (navigator.vibrate) { try { navigator.vibrate(15); } catch (er) {} } }, 280);
+    }
   });
+  grid.addEventListener('touchmove', function (e) {
+    if (drag && drag.armed && e.cancelable) e.preventDefault();
+  }, { passive: false });
   window.addEventListener('pointermove', function (e) {
     if (!drag) return;
     var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (!drag.on) {
       if (Math.abs(dx) + Math.abs(dy) < 8) return;
+      if (!drag.armed) { clearTimeout(drag.timer); drag = null; return; }
       drag.on = true;
       drag.el.classList.add('dragging');
     }
@@ -1780,7 +1786,9 @@ td.pos, td.mate { color: var(--muted); }
     if (!drag) return;
     var d = drag;
     drag = null;
+    clearTimeout(d.timer);
     if (!d.on) return;
+    lastDragEnd = Date.now();
     d.el.classList.remove('dragging');
     d.el.style.transform = '';
     if (d.target) d.target.classList.remove('drop');
