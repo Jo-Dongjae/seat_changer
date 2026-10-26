@@ -1688,8 +1688,8 @@ td.pos, td.mate { color: var(--muted); }
     sizeZ();
     if (!keep) { try { localStorage.setItem('seatpicker.zoom', String(zoomVal)); } catch (e) {} }
   }
-  $('zOut').addEventListener('click', function () { setZoom(zoomVal - 0.1); });
-  $('zIn').addEventListener('click', function () { setZoom(zoomVal + 0.1); });
+  $('zOut').addEventListener('click', function () { setZoom(zoomVal - 0.05); });
+  $('zIn').addEventListener('click', function () { setZoom(zoomVal + 0.05); });
   function applyZInput() {
     var v = parseFloat($('zVal').value);
     if (!isFinite(v)) { $('zVal').value = Math.round(zoomVal * 100); return; }
