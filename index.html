@@ -254,7 +254,9 @@ input[type="number"], input[type="text"], textarea {
 .zoombar { position: fixed; left: 14px; bottom: 14px; z-index: 20; display: flex; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; opacity: .75; }
 .zoombar:hover, .zoombar:focus-within { opacity: 1; }
 .zoombar button { border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; min-width: 38px; height: 38px; padding: 0 8px; cursor: pointer; }
-.zoombar #zVal { font-size: 12px; min-width: 46px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.zoombar .zbox { display: flex; align-items: center; font-size: 13px; color: var(--muted); }
+.zoombar #zVal { width: 3ch; box-sizing: content-box; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; text-align: right; padding: 0; margin: 0 1px 0 4px; line-height: 1.2; -moz-appearance: textfield; font-variant-numeric: tabular-nums; }
+.zoombar #zVal::-webkit-outer-spin-button, .zoombar #zVal::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .zoombar #zFit { font-size: 12px; border-left: 1px solid var(--line); padding: 0 12px; }
 @media print { .zoombar { display: none !important; } }
 .gear { position: fixed; right: 14px; bottom: 14px; z-index: 20; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted); opacity: .6; cursor: pointer; padding: 0; }
@@ -425,7 +427,7 @@ td.pos, td.mate { color: var(--muted); }
 
   <div class="zoombar" id="zoomBar" role="group" aria-label="화면 크기">
     <button type="button" id="zOut" aria-label="축소">−</button>
-    <button type="button" id="zVal" aria-label="100%로 되돌리기">100%</button>
+    <span class="zbox"><input id="zVal" type="number" inputmode="numeric" min="50" max="160" step="1" value="100" aria-label="화면 크기(퍼센트) 직접 입력"><span aria-hidden="true">%</span></span>
     <button type="button" id="zIn" aria-label="확대">+</button>
     <button type="button" id="zFit" aria-label="책상과 뽑기 버튼 한 화면에 맞추기">한눈에</button>
   </div>
@@ -1615,15 +1617,25 @@ td.pos, td.mate { color: var(--muted); }
   });
   window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !pv.hidden) closePrint(); });
   var zoomVal = 1, wrapEl = document.querySelector('.wrap');
+  function sizeZ() { var z = $('zVal'); z.style.width = Math.max(2, String(z.value).length) + 'ch'; }
+  $('zVal').addEventListener('input', function () { sizeZ(); });
   function setZoom(z, keep) {
     zoomVal = Math.max(0.5, Math.min(1.6, Math.round(z * 100) / 100));
     wrapEl.style.zoom = zoomVal === 1 ? '' : zoomVal;
-    $('zVal').textContent = Math.round(zoomVal * 100) + '%';
+    if (document.activeElement !== $('zVal') || !keep) $('zVal').value = Math.round(zoomVal * 100);
+    sizeZ();
     if (!keep) { try { localStorage.setItem('seatpicker.zoom', String(zoomVal)); } catch (e) {} }
   }
   $('zOut').addEventListener('click', function () { setZoom(zoomVal - 0.1); });
   $('zIn').addEventListener('click', function () { setZoom(zoomVal + 0.1); });
-  $('zVal').addEventListener('click', function () { setZoom(1); });
+  function applyZInput() {
+    var v = parseFloat($('zVal').value);
+    if (!isFinite(v)) { $('zVal').value = Math.round(zoomVal * 100); return; }
+    setZoom(v / 100);
+  }
+  $('zVal').addEventListener('change', applyZInput);
+  $('zVal').addEventListener('keydown', function (e) { if (e.key === 'Enter') { applyZInput(); this.blur(); } });
+  $('zVal').addEventListener('focus', function () { this.select(); });
   $('zFit').addEventListener('click', function () {
     $('settings').open = false;
     setZoom(1, true);
