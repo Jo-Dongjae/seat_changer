@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>랜덤 자리 뽑기</title>
-<meta name="theme-color" content="#EDF2F0" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#101715" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="자리 뽑기">
@@ -25,7 +24,7 @@ img { max-width: 100%; }
 
 /* Layout: chalkboard, teacher's podium centered in front of it, then rows of real-looking desks (wood top, front edge, name plate, chair) seen from above. Every row shares the same seat columns; a desk spans one or more of them. Edit switch: exclude, move, join/split, pin a student's seat. */
 :root {
-  --bg: #EDF2F0;
+  --bg: #FFFFFF;
   --surface: #FFFFFF;
   --ink: #16211D;
   --muted: #586964;
@@ -45,50 +44,9 @@ img { max-width: 100%; }
   --chair: #6F8C99;
   --focus: #1F6FEB;
   --on-focus: #FFFFFF;
+  color-scheme: light;
   --font-display: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #101715;
-    --surface: #18221F;
-    --ink: #E7EFEC;
-    --muted: #9AAAA5;
-    --line: #2E3E39;
-    --board: #25594B;
-    --desk: #62513A;
-    --desk-edge: #3D3222;
-    --desk-hi: rgba(255, 255, 255, 0.14);
-    --desk-line: #86744F;
-    --podium: #7B6544;
-    --podium-edge: #4C3E29;
-    --podium-ink: #F1E6CF;
-    --tag: #22302B;
-    --chair: #4A6B79;
-    --focus: #7DB4FF;
-    --on-focus: #0B1A2E;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #101715;
-  --surface: #18221F;
-  --ink: #E7EFEC;
-  --muted: #9AAAA5;
-  --line: #2E3E39;
-  --board: #25594B;
-  --desk: #62513A;
-  --desk-edge: #3D3222;
-  --desk-hi: rgba(255, 255, 255, 0.14);
-  --desk-line: #86744F;
-  --podium: #7B6544;
-  --podium-edge: #4C3E29;
-  --podium-ink: #F1E6CF;
-  --tag: #22302B;
-  --chair: #4A6B79;
-  --focus: #7DB4FF;
-  --on-focus: #0B1A2E;
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -330,7 +288,11 @@ td.pos, td.mate { color: var(--muted); }
   body.pv-open .printview { position: static !important; padding: 0 !important; background: #fff !important; overflow: visible !important; }
   body.pv-open .pv-inner { max-width: none; gap: 0; }
   body.pv-open .pv-bar, body.pv-open .pv-opts, body.pv-open .pv-warn, body.pv-open .pv-inner .hint { display: none !important; }
-  body.pv-open .printview img { width: 297mm; height: 210mm; border: 0; border-radius: 0; }
+  html, body.pv-open { margin: 0 !important; padding: 0 !important; width: 297mm !important; height: 209mm !important; min-height: 0 !important; overflow: hidden !important; }
+  body.pv-open > *:not(.printview) { display: none !important; }
+  body.pv-open .printview { display: block !important; width: 297mm !important; height: 209mm !important; margin: 0 !important; inset: auto !important; overflow: hidden !important; break-after: avoid; page-break-after: avoid; }
+  body.pv-open .pv-inner { display: block; width: 297mm; height: 209mm; margin: 0; padding: 0; overflow: hidden; }
+  body.pv-open .printview img { width: 297mm; height: 209mm; max-height: 209mm; border: 0; border-radius: 0; break-inside: avoid; page-break-inside: avoid; }
 }
 
 /* Tablet: wider column and roomier desks */
