@@ -286,6 +286,13 @@ input[type="number"], input[type="text"], textarea {
 .soundrow input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 0; flex: none; background: #fff; border: 1.5px solid #8A9791; border-radius: 5px; cursor: pointer; display: grid; place-items: center; }
 .soundrow input:checked { background: var(--focus); border-color: var(--focus); }
 .soundrow input:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.secgrid { display: grid; gap: 4px; margin-top: 4px; }
+.secboard { grid-column: 1 / -1; text-align: center; font-size: 11px; background: #9AA5A0; color: #fff; border-radius: 4px; padding: 2px 0; }
+.secseat { min-width: 0; min-height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 12px; cursor: pointer; padding: 2px; color: var(--fg, inherit); font-variant-numeric: tabular-nums; }
+.secseat.off { opacity: .35; cursor: default; }
+.secseat.has { background: var(--focus); border-color: var(--focus); color: var(--on-focus); font-weight: 700; }
+.secseat.pin { opacity: .5; cursor: default; }
+#secStu { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: inherit; max-width: 100%; }
 .mini-fig { display: flex; align-items: center; gap: 10px; }
 .mini-fig svg { flex: none; width: 108px; height: auto; }
 .mini-fig p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
@@ -512,6 +519,14 @@ td.pos, td.mate { color: var(--muted); }
         <p class="hint" id="focInfo" style="margin:0"></p>
       </div>
       <div class="apart">
+        <span class="lab">몰래 자리 지정 (돌아가는 동안엔 모르게, 결과는 정해 둔 자리로)</span>
+        <p class="hint" style="margin:0">학생들 눈에는 그냥 랜덤으로 돌아가고, 자물쇠 표시도 없어요. 뽑기가 끝나면 지정한 학생이 지정한 자리에 앉아 있어요. 학생을 고른 뒤 아래 자리표에서 앉힐 자리를 눌러요. 이미 지정한 자리를 다시 누르면 풀려요. 학생들이 화면을 볼 때는 이 창을 열지 마세요.</p>
+        <label class="lab" for="secStu" style="margin-top:2px">앉힐 학생</label>
+        <select id="secStu" aria-label="몰래 앉힐 학생 고르기"></select>
+        <div class="secgrid" id="secGrid" role="group" aria-label="자리표"></div>
+        <ul class="apartlist" id="secList"></ul>
+      </div>
+      <div class="apart">
         <span class="lab">붙여 앉힐 학생 (같은 묶음끼리는 가까운 자리에 앉아요)</span>
         <div class="mini-fig" id="togDiag"></div>
         <div class="seg" style="--n:2" role="group" aria-label="붙여 앉히는 거리">
@@ -586,7 +601,7 @@ td.pos, td.mate { color: var(--muted); }
     sh.five = sh.ex > 0;
     return sh;
   }
-  var excl = [], join = [], pins = {};
+  var excl = [], join = [], pins = {}, secret = {}, secStu = 0;
   var editMode = '', pinSeat = -1, drag = null;
   var seats = [], shown = [], next = 1, hit = -1, drawn = false, busy = false;
 
@@ -631,6 +646,12 @@ td.pos, td.mate { color: var(--muted); }
       if (si >= n || excl[si] || no < 1 || no > count || gap[no] || seen[no]) delete pins[k];
       else seen[no] = true;
     });
+    var seenS = {};
+    Object.keys(secret).forEach(function (k) {
+      var si = +k, no = secret[k];
+      if (si >= n || excl[si] || pins[si] != null || no < 1 || no > count || gap[no] || seen[no] || seenS[no]) delete secret[k];
+      else seenS[no] = true;
+    });
   }
   function availIdx() {
     var out = [];
@@ -662,7 +683,7 @@ td.pos, td.mate { color: var(--muted); }
         var seatsIn = [];
         for (var q = 0; q < Hb; q++) for (var k = 0; k < n; k++) {
           var i = (r0 + q) * cols + c + k;
-          if (!excl[i] && pins[i] == null) seatsIn.push(i);
+          if (!excl[i] && pins[i] == null && !secret[i]) seatsIn.push(i);
         }
         if (seatsIn.length) pods.push({ s: seatsIn, r: r0, c: c });
         c += n;
@@ -910,6 +931,7 @@ td.pos, td.mate { color: var(--muted); }
       localStorage.setItem(KEY, JSON.stringify({
         cols: cols, rows: rows, count: count, namesText: namesText, mode: mode, title: sheetTitle, msg: sheetMsg, dFrom: dateFrom, dTo: dateTo,
         gaps: Object.keys(gap).map(Number), apart: apart, apartDist: apartDist, tog: tog, togDist: togDist, foc: foc, pod: pairRows, podOver: podOver, podSize: podSize, podDir: podDir, podStash: pairRows && podStash ? { cols: podStash.cols, rows: podStash.rows, off: listTrue(podStash.excl), join: listTrue(podStash.join), pins: Object.keys(podStash.pins).map(function (k) { return [+k, podStash.pins[k]]; }) } : null,
+        sec: Object.keys(secret).map(function (k) { return [+k, secret[k]]; }),
         off: listTrue(excl), auto: Object.keys(autoEx).map(Number), join: listTrue(join),
         pins: Object.keys(pins).map(function (k) { return [+k, pins[k]]; })
       }));
@@ -954,6 +976,7 @@ td.pos, td.mate { color: var(--muted); }
       if (Array.isArray(s.auto)) s.auto.forEach(function (i) { if (i >= 0 && i < total() && excl[i]) autoEx[i] = true; });
       if (Array.isArray(s.join)) s.join.forEach(function (i) { if (i >= 0 && i < total()) join[i] = true; });
       else if (s.desk === 2 || s.desk === 3) join = groupPattern(s.desk);
+      if (Array.isArray(s.sec)) s.sec.forEach(function (q) { if (Array.isArray(q) && q[0] >= 0 && q[0] < total()) secret[q[0]] = q[1]; });
       if (Array.isArray(s.pins)) s.pins.forEach(function (p) {
         if (Array.isArray(p) && p[0] >= 0 && p[0] < total()) pins[p[0]] = p[1];
       });
@@ -1076,7 +1099,62 @@ td.pos, td.mate { color: var(--muted); }
       : '초록 칸이 모서리 자리예요. 선택한 학생은 A~D 네 곳 중 한 곳에 앉아요.';
     el.innerHTML = out + '</svg><p>' + cap + '</p>';
   }
+  function renderSecret() {
+    var sel = $('secStu'), grid2 = $('secGrid'), list = $('secList');
+    if (!sel || !grid2) return;
+    var cur = secStu;
+    sel.textContent = '';
+    var used = {};
+    Object.keys(secret).forEach(function (k) { used[secret[k]] = +k; });
+    var firstOpen = 0, curOk = false;
+    for (var no = 1; no <= count; no++) {
+      if (gap[no]) continue;
+      var pinned = false;
+      Object.keys(pins).forEach(function (k) { if (pins[k] === no) pinned = true; });
+      if (pinned) continue;
+      var o = document.createElement('option');
+      o.value = no;
+      o.textContent = no + (nameOf(no) ? ' ' + nameOf(no) : '') + (used[no] != null ? ' (지정됨)' : '');
+      sel.appendChild(o);
+      if (!firstOpen) firstOpen = no;
+      if (no === cur) curOk = true;
+    }
+    secStu = curOk ? cur : firstOpen;
+    sel.value = secStu || '';
+    grid2.textContent = '';
+    grid2.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+    var bd = document.createElement('div');
+    bd.className = 'secboard'; bd.textContent = '칠 판';
+    grid2.appendChild(bd);
+    for (var i = 0; i < total(); i++) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'secseat';
+      b.setAttribute('data-si', i);
+      var r = Math.floor(i / cols) + 1, c = (i % cols) + 1;
+      if (excl[i]) { b.className += ' off'; b.disabled = true; b.textContent = '✕'; }
+      else if (pins[i] != null) { b.className += ' pin'; b.disabled = true; b.textContent = '🔒'; }
+      else if (secret[i] != null) { b.className += ' has'; b.textContent = secret[i]; b.title = '누르면 지정 해제'; }
+      else { b.textContent = ''; b.title = r + '줄 ' + c + '번째'; }
+      b.setAttribute('aria-label', r + '줄 ' + c + '번째' + (secret[i] != null ? ', ' + secret[i] + '번 지정됨' : ''));
+      grid2.appendChild(b);
+    }
+    list.textContent = '';
+    var ks = Object.keys(secret).map(Number).sort(function (a, b) { return a - b; });
+    ks.forEach(function (k) {
+      var li = document.createElement('li');
+      var sp = document.createElement('span');
+      sp.className = "who"; sp.textContent = label(secret[k]) + ' → ' + posOf(k);
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'mini'; rm.textContent = '삭제';
+      rm.setAttribute('data-sdel', k);
+      li.appendChild(sp); li.appendChild(rm);
+      list.appendChild(li);
+    });
+    if (!ks.length) { var e0 = document.createElement('li'); e0.textContent = '지정한 자리가 없어요.'; list.appendChild(e0); }
+  }
   function renderApart() {
+    renderSecret();
     miniFig($('apartDiag'), 'apart', apartDist);
     miniFig($('togDiag'), 'tog', togDist);
     miniFig($('focDiag'), 'foc', 1);
@@ -1213,7 +1291,7 @@ td.pos, td.mate { color: var(--muted); }
     cols = pc * G.w; rows = pr * G.H;
     excl = new Array(total()).fill(false);
     join = groupPattern(G.w);
-    pins = {}; pinSeat = -1; autoEx = {};
+    pins = {}; secret = {}; pinSeat = -1; autoEx = {};
     for (var p = P; p < pc * pr; p++) {
       var pr0 = Math.floor(p / pc) * G.H, pc0 = (p % pc) * G.w;
       for (var q = 0; q < G.H; q++) for (var k = 0; k < G.w; k++) excl[(pr0 + q) * cols + pc0 + k] = true;
@@ -1226,7 +1304,9 @@ td.pos, td.mate { color: var(--muted); }
     if (busy || pairRows) return;
     var pn = {};
     Object.keys(pins).forEach(function (k) { pn[k] = pins[k]; });
-    podStash = { cols: cols, rows: rows, join: join.slice(), excl: excl.slice(), pins: pn };
+    var sn = {};
+    Object.keys(secret).forEach(function (k) { sn[k] = secret[k]; });
+    podStash = { cols: cols, rows: rows, join: join.slice(), excl: excl.slice(), pins: pn, secret: sn };
     pairRows = true; autoEx = {};
     if (editMode === 'join') editMode = '';
     applyPodLayout();
@@ -1234,7 +1314,7 @@ td.pos, td.mate { color: var(--muted); }
   function leavePod() {
     if (busy || !pairRows) return;
     pairRows = false;
-    if (podStash) { cols = podStash.cols; rows = podStash.rows; join = podStash.join.slice(); excl = podStash.excl.slice(); pins = podStash.pins; }
+    if (podStash) { cols = podStash.cols; rows = podStash.rows; join = podStash.join.slice(); excl = podStash.excl.slice(); pins = podStash.pins; secret = podStash.secret || {}; }
     podStash = null; pinSeat = -1; podOver = false; autoEx = {};
     inCols.value = cols; inRows.value = rows;
     ensureArrays(); save(); reset();
@@ -1564,6 +1644,15 @@ td.pos, td.mate { color: var(--muted); }
   function sfxTick(i) { beep(420 + i * 28, 0, 0.07, 0.12, 'triangle'); }
   function sfxDone() { [523, 659, 784, 1047].forEach(function (f, k) { beep(f, k * 0.09, 0.28, 0.16, 'sine'); }); }
   function sfxPop() { beep(660, 0, 0.09, 0.16, 'triangle'); beep(990, 0.07, 0.16, 0.14, 'sine'); }
+  /* 몰래 지정한 자리: 학생들에게는 보이지 않고, 결과에서만 그 자리에 앉아요 */
+  function validSecret() {
+    var out = {}, used = pinnedNos();
+    Object.keys(secret).forEach(function (k) {
+      var si = +k, no = secret[k];
+      if (si < total() && !excl[si] && pins[si] == null && !used[no] && !gap[no] && no >= 1 && no <= count) out[si] = no;
+    });
+    return out;
+  }
   function drawAll() {
     if (busy) return;
     clearAutoEx();
@@ -1576,7 +1665,18 @@ td.pos, td.mate { color: var(--muted); }
       vacSet = podVacant(n - realN);
       vals = vals.filter(function (v) { return v != null; });
     }
-    var final = apartShuffle(vals);
+    var secS = validSecret(), final;
+    if (Object.keys(secS).length) {
+      var realPins = pins, merged = {};
+      Object.keys(pins).forEach(function (k) { merged[k] = pins[k]; });
+      Object.keys(secS).forEach(function (k) { merged[k] = secS[k]; });
+      pins = merged;
+      try {
+        var v3 = studentValues(freeSeats().length);
+        if (pairRows) v3 = v3.filter(function (v) { return v != null; });
+        final = apartShuffle(v3);
+      } finally { pins = realPins; }
+    } else final = apartShuffle(vals);
     if (!final) {
       announce.textContent = '';
       var wb = document.createElement('div');
@@ -1614,6 +1714,12 @@ td.pos, td.mate { color: var(--muted); }
     if (!free.length && vacSet) { vacSet = null; for (var i2 = 0; i2 < seats.length; i2++) if (seats[i2] == null && !excl[i2]) free.push(i2); }
     if (!free.length) return;
     var no = next, warnApart = false;
+    var secS2 = validSecret(), forced = null;
+    Object.keys(secS2).forEach(function (k) { if (secS2[k] === no && seats[+k] == null) forced = +k; });
+    if (forced == null) {
+      var free2 = free.filter(function (i) { return !secS2[i]; });
+      if (free2.length) free = free2;
+    }
     var cand = free;
     if (apart.length || tog.length || foc.length) {
       var corner = cornerSeats(), isFoc = foc.indexOf(no) >= 0, focLeft = 0;
@@ -1655,7 +1761,7 @@ td.pos, td.mate { color: var(--muted); }
       if (!cand.length) cand = free.filter(function (i) { return seatOk(i, false); });
       if (!cand.length) { cand = free; warnApart = true; }
     }
-    var pick = cand[rnd(cand.length)];
+    var pick = forced != null ? forced : cand[rnd(cand.length)];
     seats[pick] = no;
     shown = seats;
     hit = pick;
@@ -1698,7 +1804,7 @@ td.pos, td.mate { color: var(--muted); }
       cols = clamp(inCols.value, 1, 10, cols);
       rows = clamp(inRows.value, 1, 12, rows);
     }
-    if (cols !== oc || rows !== or) { excl = []; join = []; pins = {}; pinSeat = -1; podStash = null; podBase = null; pairRows = false; autoEx = {}; }
+    if (cols !== oc || rows !== or) { excl = []; join = []; pins = {}; secret = {}; pinSeat = -1; podStash = null; podBase = null; pairRows = false; autoEx = {}; }
     var gmax = pairRows ? 120 : total() + gapCount();
     count = clamp(inCount.value, 1, gmax, Math.min(count, gmax));
     inCols.value = cols; inRows.value = rows; inCount.value = count;
@@ -2241,6 +2347,28 @@ td.pos, td.mate { color: var(--muted); }
     namesText = inNames.value; save(); buildNameFields(); render();
   });
 
+  $('secStu').addEventListener('change', function () { secStu = +this.value || 0; });
+  $('secGrid').addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target.closest('[data-si]') : null;
+    if (!t || busy) return;
+    var si = +t.getAttribute('data-si');
+    if (secret[si] != null) delete secret[si];
+    else {
+      if (!secStu) return;
+      Object.keys(secret).forEach(function (k) { if (secret[k] === secStu) delete secret[k]; });
+      secret[si] = secStu;
+      var nx = 0;
+      for (var q = secStu + 1; q <= count && !nx; q++) if (!gap[q] && !Object.keys(secret).some(function (k) { return secret[k] === q; })) nx = q;
+      if (nx) secStu = nx;
+    }
+    ensureArrays(); save(); renderSecret(); reset();
+  });
+  $('secList').addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target.closest('[data-sdel]') : null;
+    if (!t || busy) return;
+    delete secret[+t.getAttribute('data-sdel')];
+    save(); renderSecret(); reset();
+  });
   $('focChips').addEventListener('click', function (ev) {
     var t = ev.target.closest ? ev.target.closest('[data-fc]') : null;
     if (!t || busy) return;
