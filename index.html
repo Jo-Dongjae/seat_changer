@@ -519,6 +519,13 @@ td.pos, td.mate { color: var(--muted); }
         <p class="hint" id="focInfo" style="margin:0"></p>
       </div>
       <div class="apart">
+        <span class="lab">앞자리에 앉힐 학생 (맨 앞 두 줄 안에서 랜덤으로 앉아요)</span>
+        <div class="mini-fig" id="frontDiag"></div>
+        <p class="hint" style="margin:0">앉힐 학생을 누르면 선택돼요. 두 줄 안에서 어느 자리에 앉을지는 뽑을 때마다 랜덤이에요.</p>
+        <div class="chips" id="frontChips" role="group" aria-label="앞자리에 앉힐 학생 고르기"></div>
+        <p class="hint" id="frontInfo" style="margin:0"></p>
+      </div>
+      <div class="apart">
         <span class="lab">몰래 자리 지정 (돌아가는 동안엔 모르게, 결과는 정해 둔 자리로)</span>
         <p class="hint" style="margin:0">학생들 눈에는 그냥 랜덤으로 돌아가고, 자물쇠 표시도 없어요. 뽑기가 끝나면 지정한 학생이 지정한 자리에 앉아 있어요. 학생을 고른 뒤 아래 자리표에서 앉힐 자리를 눌러요. 이미 지정한 자리를 다시 누르면 풀려요. 학생들이 화면을 볼 때는 이 창을 열지 마세요.</p>
         <label class="lab" for="secStu" style="margin-top:2px">앉힐 학생</label>
@@ -590,7 +597,7 @@ td.pos, td.mate { color: var(--muted); }
   var gap = {};
   var apart = [], apartDist = 1, apartSel = {};
   var tog = [], togDist = 1, togSel = {};
-  var foc = [];
+  var foc = [], front = [];
   var pairRows = false, podOver = false, podStash = null, podBase = null, podSize = 4, podDir = 'h';
   function podG() {
     var v = podDir === 'v', es = podSize + (podOver ? 1 : 0), sh;
@@ -737,6 +744,19 @@ td.pos, td.mate { color: var(--muted); }
       if (n >= 1 && n <= count && !gap[n] && !seen[n]) { seen[n] = true; return true; }
       return false;
     });
+    var seenF = {};
+    front = front.map(Number).filter(function (n) {
+      if (n >= 1 && n <= count && !gap[n] && !seenF[n]) { seenF[n] = true; return true; }
+      return false;
+    });
+  }
+  /* 맨 앞 두 줄 (쓰는 자리가 있는 첫 두 줄) */
+  function frontSeats() {
+    var av = availIdx(), set = {}, rs = {};
+    av.forEach(function (i) { rs[Math.floor(i / cols)] = true; });
+    var two = Object.keys(rs).map(Number).sort(function (a, b) { return a - b; }).slice(0, 2);
+    av.forEach(function (i) { if (two.indexOf(Math.floor(i / cols)) >= 0) set[i] = true; });
+    return set;
   }
   /* 쓰는 자리의 네 모서리마다 모서리 칸과 그 옆 가로 1칸·세로 1칸(총 3칸) */
   function cornerSeats() {
@@ -787,16 +807,23 @@ td.pos, td.mate { color: var(--muted); }
     return { n: n, mv: mv };
   }
   function apartShuffle(vals) {
-    if (!apart.length && !tog.length && !foc.length) return place(shuffle(vals));
+    if (!apart.length && !tog.length && !foc.length && !front.length) return place(shuffle(vals));
     var free = drawSeats();
     for (var t = 0; t < 400; t++) {
       var arr = new Array(total()).fill(null), locked = {}, pos = {}, ok = true;
       Object.keys(pins).forEach(function (k) { arr[+k] = pins[k]; pos[pins[k]] = +k; });
-      /* 집중이 필요한 학생은 모서리 자리에 먼저 */
-      var corner = cornerSeats(), fpool = free.filter(function (sIdx) { return corner[sIdx]; });
-      shuffle(foc.filter(function (m) { return pos[m] == null; })).forEach(function (m) {
+      /* 집중이 필요한 학생(모서리)·앞자리 학생(맨 앞 두 줄)을 먼저 */
+      var corner = cornerSeats(), frontS = frontSeats();
+      var rest = [];
+      foc.forEach(function (m) { if (pos[m] == null && rest.indexOf(m) < 0) rest.push(m); });
+      front.forEach(function (m) { if (pos[m] == null && rest.indexOf(m) < 0) rest.push(m); });
+      shuffle(rest).sort(function (x, y) {
+        var wx = (foc.indexOf(x) >= 0 ? 2 : 0) + (front.indexOf(x) >= 0 ? 2 : 0), wy = (foc.indexOf(y) >= 0 ? 2 : 0) + (front.indexOf(y) >= 0 ? 2 : 0);
+        return wy - wx;
+      }).forEach(function (m) {
         if (!ok) return;
-        var cand = fpool.filter(function (sIdx) { return arr[sIdx] == null; });
+        var isF = foc.indexOf(m) >= 0, isT = front.indexOf(m) >= 0;
+        var cand = free.filter(function (sIdx) { return arr[sIdx] == null && (!isF || corner[sIdx]) && (!isT || frontS[sIdx]); });
         if (!cand.length) { ok = false; return; }
         var pk = cand[rnd(cand.length)];
         arr[pk] = m; pos[m] = pk; locked[pk] = true;
@@ -930,7 +957,7 @@ td.pos, td.mate { color: var(--muted); }
     try {
       localStorage.setItem(KEY, JSON.stringify({
         cols: cols, rows: rows, count: count, namesText: namesText, mode: mode, title: sheetTitle, msg: sheetMsg, dFrom: dateFrom, dTo: dateTo,
-        gaps: Object.keys(gap).map(Number), apart: apart, apartDist: apartDist, tog: tog, togDist: togDist, foc: foc, pod: pairRows, podOver: podOver, podSize: podSize, podDir: podDir, podStash: pairRows && podStash ? { cols: podStash.cols, rows: podStash.rows, off: listTrue(podStash.excl), join: listTrue(podStash.join), pins: Object.keys(podStash.pins).map(function (k) { return [+k, podStash.pins[k]]; }) } : null,
+        gaps: Object.keys(gap).map(Number), apart: apart, apartDist: apartDist, tog: tog, togDist: togDist, foc: foc, front: front, pod: pairRows, podOver: podOver, podSize: podSize, podDir: podDir, podStash: pairRows && podStash ? { cols: podStash.cols, rows: podStash.rows, off: listTrue(podStash.excl), join: listTrue(podStash.join), pins: Object.keys(podStash.pins).map(function (k) { return [+k, podStash.pins[k]]; }) } : null,
         sec: Object.keys(secret).map(function (k) { return [+k, secret[k]]; }),
         off: listTrue(excl), auto: Object.keys(autoEx).map(Number), join: listTrue(join),
         pins: Object.keys(pins).map(function (k) { return [+k, pins[k]]; })
@@ -951,6 +978,7 @@ td.pos, td.mate { color: var(--muted); }
       if (Array.isArray(s.tog)) tog = s.tog.filter(Array.isArray);
       togDist = s.togDist === 2 ? 2 : 1;
       if (Array.isArray(s.foc)) foc = s.foc;
+      if (Array.isArray(s.front)) front = s.front;
       pairRows = s.pod === true;
       podOver = pairRows && s.podOver === true;
       podSize = (s.podSize === 5 || s.podSize === 6) ? s.podSize : 4;
@@ -1074,12 +1102,29 @@ td.pos, td.mate { color: var(--muted); }
     }
     $('focInfo').textContent = foc.length ? '선택한 학생: ' + foc.length + '명' : '선택한 학생이 없어요.';
   }
+  function renderFront() {
+    var box = $('frontChips');
+    box.textContent = '';
+    for (var no = 1; no <= count; no++) {
+      if (gap[no]) continue;
+      var on = front.indexOf(no) >= 0;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (on ? ' on' : '');
+      b.setAttribute('aria-pressed', on);
+      b.setAttribute('data-fr', no);
+      b.textContent = no + (nameOf(no) ? ' ' + nameOf(no) : '');
+      box.appendChild(b);
+    }
+    $('frontInfo').textContent = front.length ? '선택한 학생: ' + front.length + '명' : '선택한 학생이 없어요.';
+  }
   function miniFig(el, kind, dist) {
     var C = 6, R = 5, S = 14, G = 4, W = C * (S + G) - G, top = 12, H = top + R * (S + G) - G;
     var cr = 2, cc = 2, out = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true"><rect x="0" y="0" width="' + W + '" height="6" rx="2" fill="#9AA5A0"/>';
     for (var r = 0; r < R; r++) for (var c = 0; c < C; c++) {
       var fill = '#D6DCD9', lab = '', near = Math.max(Math.abs(r - cr), Math.abs(c - cc)) <= dist;
-      if (kind === 'foc') {
+      if (kind === 'front') { if (r <= 1) fill = '#BFE3C6'; }
+      else if (kind === 'foc') {
         var inC = (r <= 1 && c <= 1 && !(r === 1 && c === 1)) || (r <= 1 && c >= C - 2 && !(r === 1 && c === C - 2)) ||
                   (r >= R - 2 && c <= 1 && !(r === R - 2 && c === 1)) || (r >= R - 2 && c >= C - 2 && !(r === R - 2 && c === C - 2));
         if (inC) fill = '#BFE3C6';
@@ -1087,7 +1132,7 @@ td.pos, td.mate { color: var(--muted); }
       else if (near) fill = kind === 'apart' ? '#F2C3BD' : '#BFE3C6';
       var x = c * (S + G), y = top + r * (S + G);
       out += '<rect x="' + x + '" y="' + y + '" width="' + S + '" height="' + S + '" rx="3" fill="' + fill + '"/>';
-      if (kind !== 'foc' && near && !(r === cr && c === cc)) out += '<text x="' + (x + S / 2) + '" y="' + (y + S / 2 + 3.5) + '" font-size="10" text-anchor="middle" fill="' + (kind === 'apart' ? '#B3382C' : '#1F6B3A') + '" font-weight="700">' + (kind === 'apart' ? '×' : '○') + '</text>';
+      if (kind !== 'foc' && kind !== 'front' && near && !(r === cr && c === cc)) out += '<text x="' + (x + S / 2) + '" y="' + (y + S / 2 + 3.5) + '" font-size="10" text-anchor="middle" fill="' + (kind === 'apart' ? '#B3382C' : '#1F6B3A') + '" font-weight="700">' + (kind === 'apart' ? '×' : '○') + '</text>';
     }
     if (kind === 'foc') {
       [['A', 0, 0], ['B', 0, C - 2], ['C', R - 2, 0], ['D', R - 2, C - 2]].forEach(function (k) {
@@ -1096,6 +1141,7 @@ td.pos, td.mate { color: var(--muted); }
     }
     var cap = kind === 'apart' ? '검은 칸이 한 학생이에요. 같은 묶음의 다른 학생은 ×칸(' + (dist === 1 ? '둘레 한 칸' : '둘레 두 칸') + ')에 앉지 않아요.'
       : kind === 'tog' ? '검은 칸이 한 학생이에요. 같은 묶음의 다른 학생은 ○칸(' + (dist === 1 ? '둘레 한 칸' : '둘레 두 칸') + ') 안에 앉아요.'
+      : kind === 'front' ? '초록 칸이 맨 앞 두 줄이에요. 선택한 학생은 이 안에서 랜덤으로 앉아요.'
       : '초록 칸이 모서리 자리예요. 선택한 학생은 A~D 네 곳 중 한 곳에 앉아요.';
     el.innerHTML = out + '</svg><p>' + cap + '</p>';
   }
@@ -1158,6 +1204,8 @@ td.pos, td.mate { color: var(--muted); }
     miniFig($('apartDiag'), 'apart', apartDist);
     miniFig($('togDiag'), 'tog', togDist);
     miniFig($('focDiag'), 'foc', 1);
+    miniFig($('frontDiag'), 'front', 1);
+    renderFront();
     renderFoc();
     renderRule(RU.apart, '  ↔  ');
     renderRule(RU.tog, '  +  ');
@@ -1721,13 +1769,21 @@ td.pos, td.mate { color: var(--muted); }
       if (free2.length) free = free2;
     }
     var cand = free;
-    if (apart.length || tog.length || foc.length) {
+    if (apart.length || tog.length || foc.length || front.length) {
       var corner = cornerSeats(), isFoc = foc.indexOf(no) >= 0, focLeft = 0;
+      var frontS2 = frontSeats(), isFront = front.indexOf(no) >= 0, frontLeft = 0;
+      front.forEach(function (m) { if (m !== no && seats.indexOf(m) < 0) frontLeft++; });
       var posNo = {};
       for (var q = 0; q < seats.length; q++) if (seats[q] != null) posNo[seats[q]] = q;
       foc.forEach(function (m) { if (m !== no && seats.indexOf(m) < 0) focLeft++; });
       var seatOk = function (i, strict) {
         if (isFoc && !corner[i]) return false;
+        if (isFront && !frontS2[i]) return false;
+        if (!isFront && strict && frontS2[i]) {
+          var fq = 0;
+          for (var w2 = 0; w2 < free.length; w2++) if (free[w2] !== i && frontS2[free[w2]]) fq++;
+          if (fq < frontLeft) return false;
+        }
         if (!isFoc && strict && corner[i]) {
           var fc = 0;
           for (var w = 0; w < free.length; w++) if (free[w] !== i && corner[free[w]]) fc++;
@@ -2368,6 +2424,13 @@ td.pos, td.mate { color: var(--muted); }
     if (!t || busy) return;
     delete secret[+t.getAttribute('data-sdel')];
     save(); renderSecret(); reset();
+  });
+  $('frontChips').addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target.closest('[data-fr]') : null;
+    if (!t || busy) return;
+    var no = parseInt(t.getAttribute('data-fr'), 10), k = front.indexOf(no);
+    if (k >= 0) front.splice(k, 1); else front.push(no);
+    save(); renderApart(); reset();
   });
   $('focChips').addEventListener('click', function (ev) {
     var t = ev.target.closest ? ev.target.closest('[data-fc]') : null;
