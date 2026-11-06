@@ -198,6 +198,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus
 .chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 190px; overflow-y: auto; }
 .chip { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; font-variant-numeric: tabular-nums; }
 .chip.else { opacity: 0.55; }
+.chip.cur { outline: 2px solid var(--focus); outline-offset: 1px; font-weight: 700; }
 .chip.on { background: var(--focus); border-color: var(--focus); color: var(--on-focus); opacity: 1; }
 
 .announce {
@@ -275,9 +276,9 @@ input[type="number"], input[type="text"], textarea {
 @media print { .zoombar { display: none !important; } }
 .gear { position: fixed; right: 14px; bottom: 14px; z-index: 20; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted); opacity: .6; cursor: pointer; padding: 0; }
 .gear:hover, .gear:focus-visible { opacity: 1; }
-.xview { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; }
+.xview { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 2vh 2vw; }
 .xview[hidden] { display: none; }
-.xbox { background: var(--bg); width: min(560px, 100%); max-height: 88vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+.xbox { background: var(--bg); width: min(900px, 100%); height: min(96vh, 100%); max-height: 96vh; overflow-y: auto; border-radius: 16px; padding: 14px 20px 28px; display: flex; flex-direction: column; gap: 10px; }
 @media (min-width: 700px) { .xview { align-items: center; } .xbox { border-radius: 16px; } }
 .xbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: -14px; background: var(--bg); padding: 4px 0 8px; font-size: 17px; }
 #printView.roster-only .pv-titlef, #printView.roster-only .pv-msgf, #printView.roster-only .pv-check { display: none; }
@@ -286,7 +287,8 @@ input[type="number"], input[type="text"], textarea {
 .soundrow input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 0; flex: none; background: #fff; border: 1.5px solid #8A9791; border-radius: 5px; cursor: pointer; display: grid; place-items: center; }
 .soundrow input:checked { background: var(--focus); border-color: var(--focus); }
 .soundrow input:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
-.xwarn { background: #FFF4D6; color: #6B4A00; border: 1px solid #E8C768; border-radius: 10px; padding: 8px 10px; font-size: 13px; line-height: 1.55; }
+.xhead { position: sticky; top: 0; z-index: 5; background: var(--bg); margin: -14px -20px 0; padding: 14px 20px 8px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.3); }
+.xwarn { max-height: 34vh; overflow-y: auto; background: #FFF4D6; color: #6B4A00; border: 1px solid #E8C768; border-radius: 10px; padding: 8px 10px; font-size: 13px; line-height: 1.55; }
 .xwarn[hidden] { display: none; }
 .xwarn p { margin: 0; }
 .xwarn p + p { margin-top: 4px; }
@@ -499,8 +501,10 @@ td.pos, td.mate { color: var(--muted); }
   </button>
   <div class="xview" id="extraView" role="dialog" aria-modal="true" aria-label="추가 설정" hidden>
     <div class="xbox">
-      <div class="xbar"><strong>추가 설정</strong><button type="button" class="mini" id="extraClose">닫기</button></div>
-      <div class="xwarn" id="extraWarn" role="status" aria-live="polite" hidden></div>
+      <div class="xhead">
+        <div class="xbar"><strong>추가 설정</strong><button type="button" class="mini" id="extraClose">닫기</button></div>
+        <div class="xwarn" id="extraWarn" role="status" aria-live="polite" hidden></div>
+      </div>
       <div class="apart">
         <span class="lab">떨어뜨릴 학생 (같은 묶음끼리는 가까이 앉지 않아요)</span>
         <div class="mini-fig" id="apartDiag"></div>
@@ -532,9 +536,9 @@ td.pos, td.mate { color: var(--muted); }
       </div>
       <div class="apart">
         <span class="lab">몰래 자리 지정 (돌아가는 동안엔 모르게, 결과는 정해 둔 자리로)</span>
-        <p class="hint" style="margin:0">학생들 눈에는 그냥 랜덤으로 돌아가고, 자물쇠 표시도 없어요. 뽑기가 끝나면 지정한 학생이 지정한 자리에 앉아 있어요. 학생을 고른 뒤 아래 자리표에서 앉힐 자리를 눌러요. 이미 지정한 자리를 다시 누르면 풀려요. 학생들이 화면을 볼 때는 이 창을 열지 마세요.</p>
-        <label class="lab" for="secStu" style="margin-top:2px">앉힐 학생</label>
-        <select id="secStu" aria-label="몰래 앉힐 학생 고르기"></select>
+        <p class="hint" style="margin:0">학생들 눈에는 그냥 랜덤으로 돌아가고, 자물쇠 표시도 없어요. 뽑기가 끝나면 지정한 학생이 지정한 자리에 앉아 있어요. 앉힐 학생을 누르고(진하게 표시), 아래 자리표에서 앉힐 자리를 눌러요. 지정된 학생(초록)을 다시 누르거나 지정한 자리를 다시 누르면 풀려요. 학생들이 화면을 볼 때는 이 창을 열지 마세요.</p>
+        <div class="chips" id="secChips" role="group" aria-label="몰래 앉힐 학생 고르기"></div>
+        <p class="hint" id="secInfo" style="margin:0"></p>
         <div class="secgrid" id="secGrid" role="group" aria-label="자리표"></div>
         <ul class="apartlist" id="secList"></ul>
       </div>
@@ -1193,27 +1197,29 @@ td.pos, td.mate { color: var(--muted); }
     box.hidden = false;
   }
   function renderSecret() {
-    var sel = $('secStu'), grid2 = $('secGrid'), list = $('secList');
-    if (!sel || !grid2) return;
-    var cur = secStu;
-    sel.textContent = '';
-    var used = {};
+    var box = $('secChips'), grid2 = $('secGrid'), list = $('secList');
+    if (!box || !grid2) return;
+    var used = {}, pinnedNo = {};
     Object.keys(secret).forEach(function (k) { used[secret[k]] = +k; });
+    Object.keys(pins).forEach(function (k) { pinnedNo[pins[k]] = true; });
+    box.textContent = '';
     var firstOpen = 0, curOk = false;
     for (var no = 1; no <= count; no++) {
-      if (gap[no]) continue;
-      var pinned = false;
-      Object.keys(pins).forEach(function (k) { if (pins[k] === no) pinned = true; });
-      if (pinned) continue;
-      var o = document.createElement('option');
-      o.value = no;
-      o.textContent = no + (nameOf(no) ? ' ' + nameOf(no) : '') + (used[no] != null ? ' (지정됨)' : '');
-      sel.appendChild(o);
-      if (!firstOpen) firstOpen = no;
-      if (no === cur) curOk = true;
+      if (gap[no] || pinnedNo[no]) continue;
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      var assigned = used[no] != null;
+      chip.className = 'chip' + (assigned ? ' on' : '') + (no === secStu && !assigned ? ' cur' : '');
+      chip.setAttribute('aria-pressed', assigned);
+      chip.setAttribute('data-sc', no);
+      chip.textContent = no + (nameOf(no) ? ' ' + nameOf(no) : '') + (assigned ? ' · ' + posOf(used[no]) : '');
+      box.appendChild(chip);
+      if (!assigned && !firstOpen) firstOpen = no;
+      if (no === secStu && !assigned) curOk = true;
     }
-    secStu = curOk ? cur : firstOpen;
-    sel.value = secStu || '';
+    if (!curOk) secStu = firstOpen;
+    var nSec = Object.keys(secret).length;
+    $('secInfo').textContent = (secStu ? '지금 고른 학생: ' + secStu + '번 → 자리표에서 앉힐 자리를 눌러요. ' : '') + (nSec ? '지정한 학생: ' + nSec + '명' : '지정한 학생이 없어요.');
     grid2.textContent = '';
     grid2.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
     var bd = document.createElement('div');
@@ -2279,6 +2285,7 @@ td.pos, td.mate { color: var(--muted); }
   });
   zShow();
   var extraView = $('extraView');
+  document.body.appendChild(extraView); /* 화면 크기(확대·축소)에 영향받지 않게 맨 바깥으로 */
   $('gearBtn').addEventListener('click', function () { renderWarn(); extraView.hidden = false; });
   $('extraClose').addEventListener('click', function () { extraView.hidden = true; });
   extraView.addEventListener('click', function (e) { if (e.target === extraView) extraView.hidden = true; });
@@ -2452,7 +2459,14 @@ td.pos, td.mate { color: var(--muted); }
     namesText = inNames.value; save(); buildNameFields(); render();
   });
 
-  $('secStu').addEventListener('change', function () { secStu = +this.value || 0; });
+  $('secChips').addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target.closest('[data-sc]') : null;
+    if (!t || busy) return;
+    var no = parseInt(t.getAttribute('data-sc'), 10), at = null;
+    Object.keys(secret).forEach(function (k) { if (secret[k] === no) at = k; });
+    if (at != null) { delete secret[at]; secStu = no; save(); renderSecret(); renderWarn(); reset(); return; }
+    secStu = no; renderSecret();
+  });
   $('secGrid').addEventListener('click', function (ev) {
     var t = ev.target.closest ? ev.target.closest('[data-si]') : null;
     if (!t || busy) return;
