@@ -219,6 +219,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus
 #settings[open] { display: flex; flex-direction: column; gap: 12px; }
 .sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
 .lab { font-size: 12px; color: var(--muted); }
+.xtitle { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.4; }
+.xtitle small { font-size: 12px; font-weight: 400; color: var(--muted); }
 .group { display: flex; flex-direction: column; gap: 6px; }
 .seg { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--bg); border-radius: 10px; }
 .seg button {
@@ -276,9 +278,9 @@ input[type="number"], input[type="text"], textarea {
 @media print { .zoombar { display: none !important; } }
 .gear { position: fixed; right: 14px; bottom: 14px; z-index: 20; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted); opacity: .6; cursor: pointer; padding: 0; }
 .gear:hover, .gear:focus-visible { opacity: 1; }
-.xview { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 2vh 2vw; }
+.xview { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 3vh 3vw; }
 .xview[hidden] { display: none; }
-.xbox { background: var(--bg); width: min(900px, 100%); height: min(96vh, 100%); max-height: 96vh; overflow-y: auto; border-radius: 16px; padding: 14px 20px 28px; display: flex; flex-direction: column; gap: 10px; }
+.xbox { background: var(--bg); width: min(680px, 100%); max-height: min(82vh, 100%); overflow-y: auto; border-radius: 16px; padding: 14px 20px 28px; display: flex; flex-direction: column; gap: 10px; }
 @media (min-width: 700px) { .xview { align-items: center; } .xbox { border-radius: 16px; } }
 .xbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: -14px; background: var(--bg); padding: 4px 0 8px; font-size: 17px; }
 #printView.roster-only .pv-titlef, #printView.roster-only .pv-msgf, #printView.roster-only .pv-check { display: none; }
@@ -506,7 +508,7 @@ td.pos, td.mate { color: var(--muted); }
         <div class="xwarn" id="extraWarn" role="status" aria-live="polite" hidden></div>
       </div>
       <div class="apart">
-        <span class="lab">떨어뜨릴 학생 (같은 묶음끼리는 가까이 앉지 않아요)</span>
+        <span class="lab xtitle">떨어뜨릴 학생<small> (같은 묶음끼리는 가까이 앉지 않아요)</small></span>
         <div class="mini-fig" id="apartDiag"></div>
         <div class="seg" style="--n:2" role="group" aria-label="떨어뜨리는 거리">
           <button type="button" id="ad1" aria-pressed="true">바로 옆까지</button>
@@ -521,21 +523,21 @@ td.pos, td.mate { color: var(--muted); }
         </div>
       </div>
       <div class="apart">
-        <span class="lab">집중이 필요한 학생 (네 모서리 자리 중 한 곳에 앉아요)</span>
+        <span class="lab xtitle">집중이 필요한 학생<small> (네 모서리 자리 중 한 곳에 앉아요)</small></span>
         <div class="mini-fig" id="focDiag"></div>
         <p class="hint" style="margin:0">각 모서리 칸과 그 옆 가로 1칸·세로 1칸, 모서리마다 3칸이에요. 앉힐 학생을 누르면 선택돼요.</p>
         <div class="chips" id="focChips" role="group" aria-label="집중이 필요한 학생 고르기"></div>
         <p class="hint" id="focInfo" style="margin:0"></p>
       </div>
       <div class="apart">
-        <span class="lab">앞자리에 앉힐 학생 (맨 앞 두 줄 안에서 랜덤으로 앉아요)</span>
+        <span class="lab xtitle">앞자리에 앉힐 학생<small> (맨 앞 두 줄 안에서 랜덤으로 앉아요)</small></span>
         <div class="mini-fig" id="frontDiag"></div>
         <p class="hint" style="margin:0">앉힐 학생을 누르면 선택돼요. 두 줄 안에서 어느 자리에 앉을지는 뽑을 때마다 랜덤이에요.</p>
         <div class="chips" id="frontChips" role="group" aria-label="앞자리에 앉힐 학생 고르기"></div>
         <p class="hint" id="frontInfo" style="margin:0"></p>
       </div>
       <div class="apart">
-        <span class="lab">몰래 자리 지정 (돌아가는 동안엔 모르게, 결과는 정해 둔 자리로)</span>
+        <span class="lab xtitle">몰래 자리 지정<small> (돌아가는 동안엔 모르게, 결과는 정해 둔 자리로)</small></span>
         <p class="hint" style="margin:0">학생들 눈에는 그냥 랜덤으로 돌아가고, 자물쇠 표시도 없어요. 뽑기가 끝나면 지정한 학생이 지정한 자리에 앉아 있어요. 앉힐 학생을 누르고(진하게 표시), 아래 자리표에서 앉힐 자리를 눌러요. 지정된 학생(초록)을 다시 누르거나 지정한 자리를 다시 누르면 풀려요. 학생들이 화면을 볼 때는 이 창을 열지 마세요.</p>
         <div class="chips" id="secChips" role="group" aria-label="몰래 앉힐 학생 고르기"></div>
         <p class="hint" id="secInfo" style="margin:0"></p>
@@ -543,7 +545,7 @@ td.pos, td.mate { color: var(--muted); }
         <ul class="apartlist" id="secList"></ul>
       </div>
       <div class="apart">
-        <span class="lab">붙여 앉힐 학생 (같은 묶음끼리는 가까운 자리에 앉아요)</span>
+        <span class="lab xtitle">붙여 앉힐 학생<small> (같은 묶음끼리는 가까운 자리에 앉아요)</small></span>
         <div class="mini-fig" id="togDiag"></div>
         <div class="seg" style="--n:2" role="group" aria-label="붙여 앉히는 거리">
           <button type="button" id="td1" aria-pressed="true">바로 옆까지</button>
