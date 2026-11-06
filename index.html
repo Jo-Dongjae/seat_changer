@@ -286,6 +286,10 @@ input[type="number"], input[type="text"], textarea {
 .soundrow input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 0; flex: none; background: #fff; border: 1.5px solid #8A9791; border-radius: 5px; cursor: pointer; display: grid; place-items: center; }
 .soundrow input:checked { background: var(--focus); border-color: var(--focus); }
 .soundrow input:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.xwarn { background: #FFF4D6; color: #6B4A00; border: 1px solid #E8C768; border-radius: 10px; padding: 8px 10px; font-size: 13px; line-height: 1.55; }
+.xwarn[hidden] { display: none; }
+.xwarn p { margin: 0; }
+.xwarn p + p { margin-top: 4px; }
 .secgrid { display: grid; gap: 4px; margin-top: 4px; }
 .secboard { grid-column: 1 / -1; text-align: center; font-size: 11px; background: #9AA5A0; color: #fff; border-radius: 4px; padding: 2px 0; }
 .secseat { min-width: 0; min-height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 12px; cursor: pointer; padding: 2px; color: var(--fg, inherit); font-variant-numeric: tabular-nums; }
@@ -496,6 +500,7 @@ td.pos, td.mate { color: var(--muted); }
   <div class="xview" id="extraView" role="dialog" aria-modal="true" aria-label="추가 설정" hidden>
     <div class="xbox">
       <div class="xbar"><strong>추가 설정</strong><button type="button" class="mini" id="extraClose">닫기</button></div>
+      <div class="xwarn" id="extraWarn" role="status" aria-live="polite" hidden></div>
       <div class="apart">
         <span class="lab">떨어뜨릴 학생 (같은 묶음끼리는 가까이 앉지 않아요)</span>
         <div class="mini-fig" id="apartDiag"></div>
@@ -1145,6 +1150,48 @@ td.pos, td.mate { color: var(--muted); }
       : '초록 칸이 모서리 자리예요. 선택한 학생은 A~D 네 곳 중 한 곳에 앉아요.';
     el.innerHTML = out + '</svg><p>' + cap + '</p>';
   }
+  /* 겹쳐서 제대로 안 되는 설정을 찾아서 알려요 */
+  function configWarnings() {
+    var w = [], sec = validSecret(), secNo = {};
+    Object.keys(sec).forEach(function (k) { secNo[sec[k]] = true; });
+    function nm(n) { return n + '번' + (nameOf(n) ? '(' + nameOf(n) + ')' : ''); }
+    Object.keys(secNo).map(Number).sort(function (a, b) { return a - b; }).forEach(function (n) {
+      var why = [];
+      if (foc.indexOf(n) >= 0) why.push('집중이 필요한 학생');
+      if (front.indexOf(n) >= 0) why.push('앞자리');
+      if (apart.some(function (g) { return g.indexOf(n) >= 0; })) why.push('떨어뜨리기');
+      if (tog.some(function (g) { return g.indexOf(n) >= 0; })) why.push('붙여 앉히기');
+      if (why.length) w.push(nm(n) + ': 몰래 자리 지정이 우선이라 ' + why.join('·') + ' 설정은 무시돼요.');
+    });
+    apart.forEach(function (g) {
+      for (var i = 0; i < g.length; i++) for (var j = i + 1; j < g.length; j++) {
+        if (tog.some(function (t) { return t.indexOf(g[i]) >= 0 && t.indexOf(g[j]) >= 0; }))
+          w.push(nm(g[i]) + ', ' + nm(g[j]) + ': 떨어뜨리기와 붙여 앉히기에 같이 들어 있어서 뽑을 수 없어요.');
+      }
+    });
+    var fs = Object.keys(frontSeats()).length, cs = Object.keys(cornerSeats()).length;
+    if (front.length > fs) w.push('앞자리 학생이 ' + front.length + '명인데 맨 앞 두 줄은 ' + fs + '칸이라 자리가 모자라요.');
+    if (foc.length > cs) w.push('집중이 필요한 학생이 ' + foc.length + '명인데 모서리 자리는 ' + cs + '칸이라 자리가 모자라요.');
+    var both = foc.filter(function (n) { return front.indexOf(n) >= 0 && !secNo[n]; });
+    if (both.length) {
+      var fc = cornerSeats(), ff = frontSeats(), inter = Object.keys(fc).filter(function (k) { return ff[k]; }).length;
+      if (both.length > inter) w.push('집중이 필요한 학생이면서 앞자리인 학생(' + both.length + '명)은 맨 앞 두 줄의 모서리 ' + inter + '칸에만 앉을 수 있어서 자리가 모자라요.');
+    }
+    return w;
+  }
+  function renderWarn() {
+    var box = $('extraWarn');
+    if (!box) return;
+    var w = configWarnings();
+    box.textContent = '';
+    if (!w.length) { box.hidden = true; return; }
+    var t = document.createElement('p');
+    t.textContent = '⚠ 확인해 주세요';
+    t.style.fontWeight = '700';
+    box.appendChild(t);
+    w.forEach(function (m) { var q = document.createElement('p'); q.textContent = m; box.appendChild(q); });
+    box.hidden = false;
+  }
   function renderSecret() {
     var sel = $('secStu'), grid2 = $('secGrid'), list = $('secList');
     if (!sel || !grid2) return;
@@ -1200,6 +1247,7 @@ td.pos, td.mate { color: var(--muted); }
     if (!ks.length) { var e0 = document.createElement('li'); e0.textContent = '지정한 자리가 없어요.'; list.appendChild(e0); }
   }
   function renderApart() {
+    renderWarn();
     renderSecret();
     miniFig($('apartDiag'), 'apart', apartDist);
     miniFig($('togDiag'), 'tog', togDist);
@@ -1729,7 +1777,8 @@ td.pos, td.mate { color: var(--muted); }
       announce.textContent = '';
       var wb = document.createElement('div');
       wb.className = 'sub';
-      wb.textContent = '조건에 맞는 자리를 찾지 못했어요. 오른쪽 아래 톱니바퀴(추가 설정)를 확인한 뒤 다시 뽑아 주세요.';
+      var why = configWarnings();
+      wb.textContent = '조건에 맞는 자리를 찾지 못했어요. 오른쪽 아래 톱니바퀴(추가 설정)를 확인한 뒤 다시 뽑아 주세요.' + (why.length ? ' (' + why[0] + ')' : '');
       announce.appendChild(wb);
       announce.hidden = false;
       return;
@@ -2230,7 +2279,7 @@ td.pos, td.mate { color: var(--muted); }
   });
   zShow();
   var extraView = $('extraView');
-  $('gearBtn').addEventListener('click', function () { extraView.hidden = false; });
+  $('gearBtn').addEventListener('click', function () { renderWarn(); extraView.hidden = false; });
   $('extraClose').addEventListener('click', function () { extraView.hidden = true; });
   extraView.addEventListener('click', function (e) { if (e.target === extraView) extraView.hidden = true; });
   window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !extraView.hidden) extraView.hidden = true; });
@@ -2417,13 +2466,13 @@ td.pos, td.mate { color: var(--muted); }
       for (var q = secStu + 1; q <= count && !nx; q++) if (!gap[q] && !Object.keys(secret).some(function (k) { return secret[k] === q; })) nx = q;
       if (nx) secStu = nx;
     }
-    ensureArrays(); save(); renderSecret(); reset();
+    ensureArrays(); save(); renderSecret(); renderWarn(); reset();
   });
   $('secList').addEventListener('click', function (ev) {
     var t = ev.target.closest ? ev.target.closest('[data-sdel]') : null;
     if (!t || busy) return;
     delete secret[+t.getAttribute('data-sdel')];
-    save(); renderSecret(); reset();
+    save(); renderSecret(); renderWarn(); reset();
   });
   $('frontChips').addEventListener('click', function (ev) {
     var t = ev.target.closest ? ev.target.closest('[data-fr]') : null;
